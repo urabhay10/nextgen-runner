@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0f172a;
+  --foreground: #e2e8f0;
 }
 
 @theme inline {
@@ -12,15 +12,75 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', sans-serif;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+.suggestion-active {
+    background-color: #334155;
+    border-left: 4px solid #10b981;
+}
+
+.ball-pop {
+    animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes pop {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Fixed Layout Table Styles */
+.score-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+/* Align headers and cells strictly */
+.score-table th {
+    @apply text-[10px] uppercase tracking-wider text-slate-500 font-semibold py-3 px-2 border-b border-slate-700/50 bg-slate-900/50;
+}
+
+.score-table td {
+    @apply py-2.5 px-2 text-sm border-b border-slate-800/50;
+}
+
+/* Alignment Utilities */
+.text-r {
+    text-align: right;
+}
+
+.text-l {
+    text-align: left;
+}
+
+.text-c {
+    text-align: center;
+}
+
+.score-table tr:last-child td {
+    border-bottom: none;
+}
+
+.score-table tr:hover {
+    background-color: rgba(30, 41, 59, 0.5);
+}
+
+/* Predictor Bar Animation */
+.prob-bar {
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
