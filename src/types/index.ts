@@ -56,7 +56,22 @@ export interface HistoryItem {
   type?: 'match_update' | 'match_complete';
 }
 
+export interface Model {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+}
+
 export interface SeriesSummaryData {
-  summary: string | { scoreline?: string;[key: string]: unknown };
-  type?: 'series_complete';
+  summary: any; // Scoreline or summary object
+  team1_wins?: number;
+  team2_wins?: number;
+  draws?: number;
+  history?: {
+    match_no: number;
+    winner: string;
+    margin: string;
+    score: string;
+  }[];
 }

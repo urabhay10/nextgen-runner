@@ -4,12 +4,15 @@ import { ArrowLeft, Sliders, Loader, Zap, BarChart2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import PlayerInput from './PlayerInput';
+import { fetchModels, getApiUrl } from '@/lib/api';
+import { Model } from '@/types';
 
 interface BallPredictorProps {
   onBack?: () => void;
 }
 
 const BallPredictor = ({ onBack }: BallPredictorProps) => {
+  const [models, setModels] = useState<Model[]>([]);
   const [form, setForm] = useState({
     innings: 1,
     over: 19,
@@ -20,8 +23,23 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
     bowler_name: "MA Starc",
     target: ""
   });
-  const [result, setResult] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [results, setResults] = useState<any[]>([]); // Array of { modelName, data }
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchModels().then(data => {
+      // Ensure data is valid array before setting
+      if (Array.isArray(data)) {
+        setModels(data);
+      } else {
+        console.error("fetchModels returned non-array:", data);
+        setModels([]);
+      }
+    }).catch(err => {
+        console.error("fetchModels failed:", err);
+        setModels([]);
+    });
+  }, []);
 
   const handleChange = (field: keyof typeof form, val: string | number) => {
     // Prevent NaN from entering state which causes React warnings
@@ -54,24 +72,61 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
 
   const handlePredict = async () => {
     setLoading(true);
-    setResult(null);
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://hewhocodes247-cricket-transformer-api.hf.space';
+    setResults([]);
+    
+    // If no models are loaded, try to fetch with default model (no model param)
+    if (models.length === 0) {
+       try {
+        const payload = {
+          ...form,
+          target: form.innings === 2 && form.target ? parseInt(form.target) : null
+        };
+
+        const res = await fetch(getApiUrl('/predict_ball'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload) // No model param sent
+        });
+        
+        if (!res.ok) throw new Error('Prediction failed');
+        
+        const data = await res.json();
+        setResults([{ modelName: "Default Model", data }]);
+      } catch (error) {
+        console.error(error);
+        alert("Prediction Failed: Check API connection");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       const payload = {
         ...form,
         target: form.innings === 2 && form.target ? parseInt(form.target) : null
       };
 
-      const response = await fetch(`${apiUrl}/predict_ball`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const promises = models.map(async (model) => {
+        try {
+          const res = await fetch(getApiUrl('/predict_ball'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, model: model.id })
+          });
+          const data = await res.json();
+          return { modelName: model.name, data: data };
+        } catch (e) {
+          console.error(e);
+          return null;
+        }
       });
-      const data = await response.json();
-      setResult(data);
+
+      const outcomes = (await Promise.all(promises)).filter(Boolean);
+      setResults(outcomes);
     } catch (error) {
       console.error(error);
-      alert("Prediction Failed: Check API connection");
+      // alert("Prediction Failed: Check API connection");
     } finally {
       setLoading(false);
     }
@@ -87,8 +142,13 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
     "Wicket": "bg-rose-500"
   };
 
+  // Helper to get max probability for an outcome across all models to normalize heatmap
+  const getMaxProbForOutcome = (outcome: string) => {
+    return Math.max(...results.map(r => r.data.distribution[outcome] || 0));
+  };
+
   return (
-    <div className="min-h-screen p-6 flex flex-col items-center animate-fade-in max-w-4xl mx-auto w-full">
+    <div className="min-h-screen p-6 flex flex-col items-center animate-fade-in max-w-6xl mx-auto w-full">
       {/* Header */}
       <div className="w-full flex justify-between items-center mb-8">
         {onBack ? (
@@ -103,9 +163,9 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
         <h1 className="text-2xl font-black bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent uppercase tracking-tight">AI Ball Predictor</h1>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8 w-full">
+      <div className="grid md:grid-cols-12 gap-8 w-full">
         {/* Input Section */}
-        <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-6">
+        <div className="md:col-span-4 bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl space-y-6 h-fit sticky top-6">
           <div className="flex justify-between items-center border-b border-slate-800 pb-4">
             <h2 className="font-bold text-white flex items-center gap-2"><Sliders className="w-4 h-4 text-purple-400" /> Match State</h2>
           </div>
@@ -209,59 +269,81 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
         </div>
 
         {/* Result Section */}
-        <div className="flex flex-col gap-6">
-          {result ? (
-            <>
-              <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                <h3 className="text-slate-400 font-bold text-xs uppercase tracking-widest mb-6">Probability Distribution</h3>
+        <div className="md:col-span-8 flex flex-col gap-6">
+          {results.length > 0 ? (
+            <div className="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden w-full">
+               <div className="p-6 border-b border-slate-800 bg-slate-800/50">
+                 <h2 className="font-bold text-white flex items-center gap-2">
+                   <BarChart2 className="w-4 h-4 text-emerald-400" /> 
+                   Model Comparison
+                 </h2>
+               </div>
+               
+               <div className="overflow-x-auto">
+                 <table className="w-full text-sm text-left border-collapse">
+                   <thead>
+                     <tr className="bg-slate-950/50 text-slate-400 uppercase text-xs tracking-wider border-b border-slate-800">
+                       <th className="p-4 rounded-tl-lg font-mono">Model</th>
+                       {["0", "1", "2", "3", "4", "6", "Wicket"].map(o => (
+                           <th key={o} className={`p-4 text-center font-bold ${o === 'Wicket' ? 'text-rose-500' : o === '6' || o === '4' ? 'text-emerald-500' : ''}`}>
+                               {o === 'Wicket' ? 'W' : o}
+                           </th>
+                       ))}
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-800">
+                     {results.map((res, idx) => (
+                       <tr key={idx} className="hover:bg-slate-800/30 transition-colors group">
+                         <td className="p-4 font-bold text-slate-200 border-r border-slate-800/50 whitespace-nowrap bg-slate-900/50 group-hover:bg-slate-800/50 sticky left-0 z-10 min-w-[140px]">
+                           {res.modelName}
+                         </td>
+                         {["0", "1", "2", "3", "4", "6", "Wicket"].map((outcome) => {
+                             // Assuming res.data.distribution has keys "0", "1", ...
+                             const prob = res.data.distribution[outcome] || 0;
+                             const percentage = (prob * 100).toFixed(1);
+                             
+                             // Visual scaling - amplify low probabilities slightly for visibility
+                             // Max possible prob is 1.0
+                             const opacity = Math.min(1, prob * 2.5); 
+                             
+                             let colorBase = "bg-slate-500";
+                             if (outcome === "0") colorBase = outcomeColors["0"];
+                             if (outcome === "1") colorBase = outcomeColors["1"];
+                             if (outcome === "2") colorBase = outcomeColors["2"];
+                             if (outcome === "3") colorBase = outcomeColors["3"];
+                             if (outcome === "4") colorBase = outcomeColors["4"];
+                             if (outcome === "6") colorBase = outcomeColors["6"];
+                             if (outcome === "Wicket") colorBase = outcomeColors["Wicket"];
 
-                <div className="space-y-4">
-                  {Object.entries<number>(result.distribution).map(([outcome, prob]) => {
-                    const percentage = (prob * 100).toFixed(1);
-                    const allProbs = Object.values(result.distribution) as number[];
-                    const isMax = Math.max(...allProbs) === prob;
-
-                    return (
-                      <div key={outcome} className="group">
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className={`font-bold ${outcome === 'Wicket' ? 'text-rose-400' : outcome === '6' || outcome === '4' ? 'text-emerald-400' : 'text-slate-300'}`}>
-                            {outcome === 'Wicket' ? 'WICKET' : outcome + (outcome === '1' ? ' Run' : ' Runs')}
-                          </span>
-                          <span className="font-mono text-slate-400">{percentage}%</span>
-                        </div>
-                        <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full prob-bar ${outcomeColors[outcome] || 'bg-slate-500'} ${isMax ? 'shadow-[0_0_10px_currentColor]' : ''}`}
-                            style={{ width: `${percentage}%`, opacity: isMax ? 1 : 0.7 }}
-                          ></div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex justify-between items-center text-xs text-slate-500">
-                <div className="flex flex-col gap-1">
-                  <span className="uppercase tracking-widest font-bold">Resolved As</span>
-                </div>
-                <div className="text-right flex gap-4">
-                  <div>
-                    <div className="text-emerald-400 font-bold">{result.striker_resolved}</div>
-                    <div>Striker</div>
-                  </div>
-                  <div>
-                    <div className="text-rose-400 font-bold">{result.bowler_resolved}</div>
-                    <div>Bowler</div>
-                  </div>
-                </div>
-              </div>
-            </>
+                             const textColor = prob > 0.3 ? "text-white font-bold" : "text-slate-400";
+                             
+                             return (
+                               <td key={outcome} className="p-2 text-center relative h-12">
+                                  {/* Background Heatmap Cell */}
+                                  <div 
+                                    className={`absolute inset-1 rounded transition-all duration-300 ${colorBase}`}
+                                    style={{ 
+                                      opacity: opacity * 0.4 + 0.05, // Minimum visibility
+                                    }}
+                                  ></div>
+                                  
+                                  <span className={`relative z-10 text-xs font-mono font-medium ${textColor}`}>
+                                    {prob < 0.005 && prob > 0 ? "<0.1" : percentage}%
+                                  </span>
+                               </td>
+                             );
+                         })}
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+            </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-600 bg-slate-900/30 rounded-2xl border border-slate-800/50 border-dashed">
-              <BarChart2 className="w-12 h-12 mb-4 opacity-50" />
-              <p className="text-sm font-medium">Enter match details to predict</p>
+            <div className="h-full flex flex-col items-center justify-center text-slate-600 bg-slate-900/30 rounded-2xl border border-slate-800/50 border-dashed min-h-[400px]">
+              <BarChart2 className="w-16 h-16 mb-4 opacity-50 stroke-1" />
+              <p className="text-lg font-medium">Enter match details & predict</p>
+              <p className="text-sm opacity-70">Compare probabilities across all models instantly</p>
             </div>
           )}
         </div>

@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ArrowLeft, History, ChevronDown, ChevronUp, Settings2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, History, ChevronDown, ChevronUp, Settings2, Zap } from 'lucide-react';
 import Link from 'next/link';
 import PlayerInput from '@/components/PlayerInput';
 import BowlingOrderEditor from '@/components/BowlingOrderEditor';
 import ScoreCardLive from '@/components/ScoreCardLive';
 import Commentary from '@/components/Commentary';
-import DetailedScorecard from '@/components/DetailedScorecard';
 import SeriesSummary from '@/components/SeriesSummary';
-import { MatchDetail, BallEvent, HistoryItem, SeriesSummaryData } from '@/types';
+import { MatchDetail, BallEvent, HistoryItem, SeriesSummaryData, Model } from '@/types';
+import { fetchModels, getApiUrl } from '@/lib/api';
 
 export default function Simulator() {
   const [stage, setStage] = useState<'setup' | 'live'>('setup');
@@ -17,6 +17,14 @@ export default function Simulator() {
   const [team1, setTeam1] = useState({ name: "India", players: Array(11).fill("") });
   const [team2, setTeam2] = useState({ name: "Australia", players: Array(11).fill("") });
   
+  // Models
+  const [models, setModels] = useState<Model[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>("");
+
+  // Simulation Control
+  const simulationIdRef = useRef<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Advanced State
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [eligibleBowlers1, setEligibleBowlers1] = useState<string[]>([]);
@@ -26,11 +34,34 @@ export default function Simulator() {
   const [loadingOrder1, setLoadingOrder1] = useState(false);
   const [loadingOrder2, setLoadingOrder2] = useState(false);
 
-  const [matchDetail, setMatchDetail] = useState<MatchDetail | null>(null);
+  const [matchDetail, setMatchDetail] = useState<BallEvent | null>(null);
   const [ballEvents, setBallEvents] = useState<BallEvent[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [seriesComplete, setSeriesComplete] = useState<SeriesSummaryData | null>(null);
   const [delayMs, setDelayMs] = useState(500); // Default to reasonable 500ms
+  const delayMsRef = useRef(delayMs);
+
+  useEffect(() => {
+    delayMsRef.current = delayMs;
+  }, [delayMs]);
+
+  // Initial Data Fetch
+  useEffect(() => {
+    fetchModels().then(data => {
+      // Ensure data is valid array before setting
+      if (Array.isArray(data)) {
+        setModels(data);
+        // Default to empty string for "Default Backend Model"
+        setSelectedModel(""); 
+      } else {
+        console.error("fetchModels returned non-array:", data);
+        setModels([]);
+      }
+    }).catch(err => {
+        console.error("fetchModels failed:", err);
+        setModels([]);
+    });
+  }, []);
 
   const fillDefaults = () => {
     setTeam1({ name: "India", players: ["RG Sharma", "V Kohli", "RR Pant", "SA Yadav", "S Dube", "HH Pandya", "RA Jadeja", "AR Patel", "Kuldeep Yadav", "JJ Bumrah", "Arshdeep Singh"] });
@@ -47,10 +78,9 @@ export default function Simulator() {
     if (activePlayers.length < 5) return; // Need at least 5 to bowl 20 overs typically
 
     setLoading(true);
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://hewhocodes247-cricket-transformer-api.hf.space';
     
     try {
-      const res = await fetch(`${apiUrl}/generate_bowling_order`, {
+      const res = await fetch(getApiUrl('/generate_bowling_order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -75,10 +105,8 @@ export default function Simulator() {
     const activePlayers = team.players.filter(p => p.trim() !== "");
     if (activePlayers.length === 0) return;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://hewhocodes247-cricket-transformer-api.hf.space';
-    
     try {
-      const res = await fetch(`${apiUrl}/eligible_bowlers`, {
+      const res = await fetch(getApiUrl('/eligible_bowlers'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ players: activePlayers })
@@ -124,39 +152,47 @@ export default function Simulator() {
   };
 
   const startSimulation = async () => {
+    // Generate new ID for this run
+    const currentSimId = Date.now();
+    simulationIdRef.current = currentSimId;
+
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setStage('live');
     setBallEvents([]);
     setMatchDetail(null);
     setHistory([]);
     setSeriesComplete(null);
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://hewhocodes247-cricket-transformer-api.hf.space';
-
     // Determine Mode
     const isCustom = showAdvanced && bowlingOrder1.some(b=>b) && bowlingOrder2.some(b=>b);
     const endpoint = isCustom ? '/simulate_custom_match' : '/simulate_series_stream';
     
-    const payload = isCustom ? {
-        team1_name: team1.name,
-        team1_players: team1.players,
-        team1_bowling_order: bowlingOrder1,
-        team2_name: team2.name,
-        team2_players: team2.players,
-        team2_bowling_order: bowlingOrder2,
-        num_matches: numMatches
-    } : {
+    const payload: any = { // eslint-disable-line @typescript-eslint/no-explicit-any
         team1_name: team1.name,
         team1_players: team1.players,
         team2_name: team2.name,
         team2_players: team2.players,
-        num_matches: numMatches
+        num_matches: numMatches,
+        // Only include model if a specific one is selected (not empty string)
+        ...(selectedModel ? { model: selectedModel } : {})
     };
 
+    if (isCustom) {
+        payload.team1_bowling_order = bowlingOrder1;
+        payload.team2_bowling_order = bowlingOrder2;
+    }
+
     try {
-      const response = await fetch(`${apiUrl}${endpoint}`, {
+      const response = await fetch(getApiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: abortControllerRef.current.signal
       });
 
       if (!response.body) {
@@ -172,11 +208,16 @@ export default function Simulator() {
 
       const processLine = async (line: string) => {
         if (!line.trim()) return;
+        if (simulationIdRef.current !== currentSimId) return; // Stop if new sim started
+
         try {
           const data = JSON.parse(line);
           if (data.type === 'ball') {
             // Apply delay before updating state for ball events to simulate speed
-            if (delayMs > 0) await wait(delayMs);
+            // Check ref again after delay
+            const currentDelay = delayMsRef.current;
+            if (currentDelay > 0) await wait(currentDelay);
+            if (simulationIdRef.current !== currentSimId) return;
 
             setMatchDetail(data.detail);
             setBallEvents(prev => {
@@ -210,6 +251,7 @@ export default function Simulator() {
       };
 
       while (true) {
+        if (simulationIdRef.current !== currentSimId) break;
         const { done, value } = await reader.read();
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
@@ -219,14 +261,17 @@ export default function Simulator() {
         
         // Loop through lines sequentially to respect the async delay in processLine
         for (const line of lines) {
+           if (simulationIdRef.current !== currentSimId) break;
            await processLine(line);
         }
       }
-      if (buffer.trim()) await processLine(buffer);
+      if (simulationIdRef.current === currentSimId && buffer.trim()) await processLine(buffer);
     } catch (err) {
-      console.error("Simulation Error:", err);
-      alert("Simulation failure. Check console.");
-      setStage('setup');
+      if (simulationIdRef.current === currentSimId) {
+        console.error("Simulation Error:", err);
+        alert("Simulation failure. Check console.");
+        setStage('setup');
+      }
     }
   };
 
@@ -273,15 +318,30 @@ export default function Simulator() {
         </div>
       </div>
       <div className="mt-16 flex flex-col items-center gap-6">
-        <div className="flex items-center gap-4 bg-slate-800 p-3 rounded-xl border border-slate-700">
-          <span className="text-slate-400 font-bold">Games:</span>
-          <input 
-            type="number" 
-            
-            value={numMatches} 
-            onChange={e => setNumMatches(Math.max(1, parseInt(e.target.value) || 1))} 
-            className="bg-slate-900 w-16 p-1 text-center font-bold text-emerald-400 border border-slate-700 rounded text-white"
-          />
+        <div className="flex gap-8">
+          <div className="flex items-center gap-4 bg-slate-800 p-3 rounded-xl border border-slate-700">
+            <span className="text-slate-400 font-bold">Games:</span>
+            <input 
+              type="number" 
+              value={numMatches} 
+              onChange={e => setNumMatches(Math.max(1, parseInt(e.target.value) || 1))} 
+              className="bg-slate-900 w-16 p-1 text-center font-bold text-emerald-400 border border-slate-700 rounded text-white"
+            />
+          </div>
+
+          <div className="flex items-center gap-4 bg-slate-800 p-3 rounded-xl border border-slate-700">
+            <span className="text-slate-400 font-bold">Model:</span>
+            <select 
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="bg-slate-900 px-3 py-1 font-bold text-emerald-400 border border-slate-700 rounded text-white outline-none"
+            >
+              <option value="">Default Backend Model</option>
+              {models.map(m => (
+                <option key={m.id} value={m.id}>{m.id}</option>
+              ))}
+            </select>
+          </div>
         </div>
         
         {/* Advanced Toggle */}
@@ -322,119 +382,68 @@ export default function Simulator() {
             {showAdvanced ? 'SIMULATE CUSTOM MATCH' : 'START SERIES'}
           </button>
         </div>
-
-        {/* Speed Control */}
-        <div className="flex items-center gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800 w-full max-w-lg">
-           <span className="text-slate-400 font-bold text-sm whitespace-nowrap">Sim Speed:</span>
-           <input 
-             type="range" 
-             min="0" 
-             max="1000" 
-             step="50"
-             value={delayMs} 
-             onChange={(e) => setDelayMs(parseInt(e.target.value))}
-             className="w-full accent-emerald-500 cursor-pointer"
-           />
-           <span className="text-emerald-400 font-mono text-xs w-16 text-right">
-             {delayMs < 10 ? 'MAX' : `${delayMs}ms`}
-           </span>
-        </div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen p-6 bg-slate-950 flex flex-col items-center">
-      {/* Header Bar */}
-      <div className="w-full max-w-6xl flex justify-between items-center mb-6">
-        <button onClick={() => setStage('setup')} className="text-xs font-bold text-slate-500 hover:text-white flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900 border border-slate-800 transition hover:border-slate-600">
-          <ArrowLeft className="w-4 h-4" /> BACK TO SETUP
-        </button>
-        {seriesComplete && <div className="text-emerald-400 font-black animate-pulse uppercase tracking-widest text-xs border border-emerald-500/20 px-3 py-1 rounded bg-emerald-500/5">Series Concluded</div>}
+    <div className="min-h-screen bg-[#0f172a] text-white flex">
+      {/* Speed Control Sidebar */}
+      <div className="w-16 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-8 z-50 fixed left-0 h-full">
+         <div className="mb-4 text-xs font-bold text-slate-500 uppercase tracking-widest rotate-180" style={{ writingMode: 'vertical-rl' }}>SPEED</div>
+         <div className="h-64 relative flex items-center justify-center">
+            <input
+              type="range"
+              min="0"
+              max="1000"
+              step="50"
+              value={1000 - delayMs} // Invert so up is fast
+              onChange={(e) => setDelayMs(1000 - parseInt(e.target.value))}
+              className="w-64 -rotate-90 bg-slate-800 h-2 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+            />
+         </div>
+         <div className="mt-4 text-xs font-bold text-slate-500">
+            {delayMs < 50 ? 'MAX' : delayMs > 800 ? 'SLOW' : ''}
+         </div>
+         
+         <div className="mt-auto">
+            <button key="exit" onClick={() => { simulationIdRef.current = 0; setStage('setup'); }} className="p-3 bg-slate-800 rounded-full hover:bg-rose-500 hover:text-white transition text-slate-400">
+                <ArrowLeft className="w-5 h-5" />
+            </button>
+         </div>
       </div>
 
-      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-8">
-
-        {/* LEFT COLUMN: LIVE ACTION (1/2 width) */}
-        <div className="space-y-6">
-          {/* Loading State */}
-          {!matchDetail && !seriesComplete && (
-            <div className="flex flex-col items-center justify-center h-96 text-slate-500 animate-pulse bg-slate-900/50 rounded-2xl border border-slate-800 border-dashed">
-              <div className="text-6xl mb-6">🏏</div>
-              <div className="font-mono text-sm uppercase tracking-widest text-emerald-500">Initializing Pitch...</div>
-              <div className="text-xs text-slate-600 mt-2">Tossing coin... Checking field...</div>
-            </div>
-          )}
-
-          <ScoreCardLive detail={matchDetail} live={!seriesComplete} />
-        </div>
-
-        {/* RIGHT COLUMN: COMMENTARY (1/2 width) */}
-        <div className="">
-          <Commentary events={ballEvents} />
-        </div>
-      </div>
-
-      {/* FULL WIDTH BOTTOM SECTION: MATCH HISTORY / SCORECARDS */}
-      <div className="w-full max-w-6xl mt-12 space-y-8">
-        {seriesComplete && <SeriesSummary data={seriesComplete} />}
-
-        {history.length > 0 && (
+      <div className="flex-1 ml-16 p-4 md:p-8 max-w-7xl mx-auto w-full">
+        <header className="mb-8 flex justify-between items-center">
           <div>
-            <h2 className="text-xl font-black text-slate-300 uppercase tracking-wider mb-6 flex items-center gap-3">
-              <History className="w-6 h-6 text-slate-500" /> Match History
-            </h2>
-
-            <div className="grid gap-8">
-              {history.map((m, idx) => (
-                <HistoryMatchCard key={idx} match={m} index={idx} />
-              ))}
+            <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500">
+              LIVE SIMULATION
+            </h1>
+            <div className="flex gap-2 text-sm font-mono text-slate-400 mt-1">
+              <span>Model: {models.find(m => m.id === selectedModel)?.name || selectedModel}</span>
+              <span>•</span>
+              <span>Delay: {delayMs}ms</span>
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
+        </header>
 
-function HistoryMatchCard({ match, index }: { match: HistoryItem, index: number }) {
-  const [isExpanded, setIsExpanded] = useState(false); // Changed default to false (minimized)
-
-  return (
-    <div className="bg-slate-950 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden">
-      {/* Match Header */}
-      <div 
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="bg-slate-900/50 p-4 flex justify-between items-center cursor-pointer hover:bg-slate-900 transition-colors select-none"
-      >
-        <div className="flex items-center gap-4">
-          <button className="text-slate-500 hover:text-white transition">
-            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-          </button>
-          <div>
-            <span className="font-bold text-slate-300 block">Match {index + 1}</span>
-            {!isExpanded && (
-               <span className="text-xs text-slate-500">
-                 {Object.entries(match.scorecard || {}).map(([team, data]) => `${team} ${data.score}`).join('  vs  ')}
-               </span>
-            )}
+        <div className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            <ScoreCardLive detail={matchDetail} live={delayMs > 0 && !seriesComplete && (history.length < numMatches || !matchDetail?.is_wicket)} />
+            <Commentary events={ballEvents} />
+          </div>
+          
+          <div className="space-y-6">
+            {seriesComplete && <SeriesSummary data={seriesComplete} />}
+            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+               <h3 className="font-bold text-slate-400 mb-4 uppercase text-xs tracking-widest">Controls</h3>
+               <button onClick={() => setDelayMs(0)} className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold rounded-lg transition flex items-center justify-center gap-2 mb-3">
+                 <Zap className="w-4 h-4" /> SKIP / INSTANT
+               </button>
+            </div>
           </div>
         </div>
-        
-        <div className="text-right">
-          <div className="text-emerald-400 font-bold">{match.winner} Won</div>
-          <div className="text-xs text-slate-500">by {match.margin}</div>
-        </div>
       </div>
-
-      {/* Scorecards Container */}
-      {isExpanded && (
-        <div className="p-4 md:p-6 grid lg:grid-cols-2 gap-8 border-t border-slate-800 animate-in fade-in slide-in-from-top-4 duration-300">
-          {match.scorecard && Object.entries(match.scorecard).map(([name, data]) => (
-            <DetailedScorecard key={name} teamName={name} data={data} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { BrainCircuit, Play } from 'lucide-react';
+import { BrainCircuit, Play, Settings2 } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -14,8 +14,8 @@ export default function Home() {
           Advanced AI-powered cricket simulation engine. Run ball-by-ball T20I match simulations or predict outcomes for any match scenario instantly.
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-6 justify-center mt-12 w-full">
-          <Link href="/simulate" className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 p-1 transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(16,185,129,0.3)]">
+        <div className="flex flex-col sm:flex-row gap-6 justify-center mt-12 w-full max-w-5xl">
+          <Link href="/simulate" className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 p-1 transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(16,185,129,0.3)] flex-1">
             <div className="relative h-full bg-slate-900 rounded-xl p-8 flex flex-col items-center gap-4 transition-colors group-hover:bg-slate-900/80">
               <div className="p-4 rounded-full bg-emerald-500/10 text-emerald-400 mb-2">
                 <Play className="w-12 h-12" />
@@ -28,7 +28,7 @@ export default function Home() {
             </div>
           </Link>
 
-          <Link href="/predict" className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 p-1 transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(168,85,247,0.3)]">
+          <Link href="/predict" className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 p-1 transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(168,85,247,0.3)] flex-1">
             <div className="relative h-full bg-slate-900 rounded-xl p-8 flex flex-col items-center gap-4 transition-colors group-hover:bg-slate-900/80">
               <div className="p-4 rounded-full bg-purple-500/10 text-purple-400 mb-2">
                 <BrainCircuit className="w-12 h-12" />
@@ -38,6 +38,19 @@ export default function Home() {
               <span className="mt-4 text-purple-400 font-bold text-sm uppercase tracking-widest flex items-center gap-2 group-hover:gap-4 transition-all">
                 Open Predictor <span className="text-lg">→</span>
               </span>
+            </div>
+          </Link>
+
+          <Link href="/compare" className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-1 transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(99,102,241,0.3)] flex-1">
+            <div className="relative h-full bg-slate-900 rounded-xl p-8 flex flex-col items-center gap-4 transition-colors group-hover:bg-slate-900/80">
+                <div className="p-4 rounded-full bg-blue-500/10 text-blue-400 mb-2">
+                    <Settings2 className="w-12 h-12" />
+                </div>
+                <h2 className="text-2xl font-bold text-white tracking-tight">Model Comparison</h2>
+                <p className="text-sm text-slate-400 max-w-xs">Run parallel simulations with different AI models to compare their strategies.</p>
+                <span className="mt-4 text-blue-400 font-bold text-sm uppercase tracking-widest flex items-center gap-2 group-hover:gap-4 transition-all">
+                    Compare Models <span className="text-lg">→</span>
+                </span>
             </div>
           </Link>
         </div>
