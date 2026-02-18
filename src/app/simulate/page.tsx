@@ -8,6 +8,7 @@ import BowlingOrderEditor from '@/components/BowlingOrderEditor';
 import ScoreCardLive from '@/components/ScoreCardLive';
 import Commentary from '@/components/Commentary';
 import SeriesSummary from '@/components/SeriesSummary';
+import DetailedScorecard from '@/components/DetailedScorecard';
 import { MatchDetail, BallEvent, HistoryItem, SeriesSummaryData, Model } from '@/types';
 import { fetchModels, getApiUrl } from '@/lib/api';
 
@@ -38,6 +39,7 @@ export default function Simulator() {
   const [ballEvents, setBallEvents] = useState<BallEvent[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [seriesComplete, setSeriesComplete] = useState<SeriesSummaryData | null>(null);
+  const [showSummaryFull, setShowSummaryFull] = useState(false);
   const [delayMs, setDelayMs] = useState(500); // Default to reasonable 500ms
   const delayMsRef = useRef(delayMs);
 
@@ -150,6 +152,40 @@ export default function Simulator() {
     if (tId === 1) { const n = [...team1.players]; n[idx] = v; setTeam1({ ...team1, players: n }); }
     else { const n = [...team2.players]; n[idx] = v; setTeam2({ ...team2, players: n }); }
   };
+
+  const getLiveSummary = () => {
+    if (seriesComplete) return { ...seriesComplete, matches: history };
+    if (history.length === 0) return null;
+
+    let t1Wins = 0;
+    let t2Wins = 0;
+    let ties = 0;
+    
+    for (const h of history) {
+        if (h.winner === team1.name) t1Wins++;
+        else if (h.winner === team2.name) t2Wins++;
+        else if (h.winner === 'Tie') ties++;
+    }
+
+    let header = "Series in Progress";
+    if (t1Wins > t2Wins) header = `${team1.name} leads ${t1Wins}-${t2Wins}`;
+    else if (t2Wins > t1Wins) header = `${team2.name} leads ${t2Wins}-${t1Wins}`;
+    else header = `Series Level ${t1Wins}-${t2Wins}`;
+
+    if (ties > 0) header += ` (${ties} ties)`;
+
+    return {
+        summary: { 
+            scoreline: header,
+            [team1.name]: t1Wins,
+            [team2.name]: t2Wins,
+            Tie: ties
+        },
+        matches: history
+    };
+  };
+
+  const liveSummary = getLiveSummary();
 
   const startSimulation = async () => {
     // Generate new ID for this run
@@ -318,23 +354,25 @@ export default function Simulator() {
         </div>
       </div>
       <div className="mt-16 flex flex-col items-center gap-6">
-        <div className="flex gap-8">
-          <div className="flex items-center gap-4 bg-slate-800 p-3 rounded-xl border border-slate-700">
-            <span className="text-slate-400 font-bold">Games:</span>
+         <div className="flex gap-8 items-center bg-slate-900/50 p-6 rounded-2xl border border-slate-800 backdrop-blur">
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Matches to Simulate</span>
             <input 
               type="number" 
               value={numMatches} 
               onChange={e => setNumMatches(Math.max(1, parseInt(e.target.value) || 1))} 
-              className="bg-slate-900 w-16 p-1 text-center font-bold text-emerald-400 border border-slate-700 rounded text-white"
+              className="bg-slate-800 w-24 p-3 text-center text-xl font-bold text-emerald-400 border border-slate-700 rounded-lg outline-none focus:border-emerald-500 transition"
             />
           </div>
 
-          <div className="flex items-center gap-4 bg-slate-800 p-3 rounded-xl border border-slate-700">
-            <span className="text-slate-400 font-bold">Model:</span>
+          <div className="h-12 w-px bg-slate-800 mx-4"></div>
+
+          <div className="flex flex-col gap-2 w-64">
+            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">AI Model</span>
             <select 
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="bg-slate-900 px-3 py-1 font-bold text-emerald-400 border border-slate-700 rounded text-white outline-none"
+              className="bg-slate-800 p-3 text-sm font-bold text-white border border-slate-700 rounded-lg outline-none focus:border-cyan-500 transition appearance-none"
             >
               <option value="">Default Backend Model</option>
               {models.map(m => (
@@ -389,60 +427,136 @@ export default function Simulator() {
   return (
     <div className="min-h-screen bg-[#0f172a] text-white flex">
       {/* Speed Control Sidebar */}
-      <div className="w-16 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-8 z-50 fixed left-0 h-full">
-         <div className="mb-4 text-xs font-bold text-slate-500 uppercase tracking-widest rotate-180" style={{ writingMode: 'vertical-rl' }}>SPEED</div>
-         <div className="h-64 relative flex items-center justify-center">
-            <input
-              type="range"
-              min="0"
-              max="1000"
-              step="50"
-              value={1000 - delayMs} // Invert so up is fast
-              onChange={(e) => setDelayMs(1000 - parseInt(e.target.value))}
-              className="w-64 -rotate-90 bg-slate-800 h-2 rounded-lg appearance-none cursor-pointer accent-emerald-500"
-            />
+      <div className="w-16 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-8 z-50 fixed left-0 h-full justify-between">
+         <div className="flex flex-col items-center gap-2">
+             <Link href="/" className="p-3 bg-slate-800/50 rounded-xl hover:bg-slate-700 text-slate-400 transition" title="Back to Home">
+                 <ArrowLeft className="w-5 h-5" />
+             </Link>
          </div>
-         <div className="mt-4 text-xs font-bold text-slate-500">
-            {delayMs < 50 ? 'MAX' : delayMs > 800 ? 'SLOW' : ''}
+
+         <div className="flex flex-col items-center h-full max-h-[50vh] relative group">
+             <div className="mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest rotate-180" style={{ writingMode: 'vertical-rl' }}>SIMULATION SPEED</div>
+             <div className="h-64 relative flex items-center justify-center w-8 bg-slate-800/50 rounded-full overflow-hidden">
+                <div 
+                    className="absolute bottom-0 w-full bg-emerald-500/20 transition-all duration-300"
+                    style={{ height: `${((1000 - delayMs) / 1000) * 100}%` }}
+                ></div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1000"
+                  step="50"
+                  value={1000 - delayMs} // Invert so up is fast
+                  onChange={(e) => setDelayMs(1000 - parseInt(e.target.value))}
+                  className="w-64 -rotate-90 bg-transparent h-full w-8 appearance-none cursor-pointer z-10 opacity-0"
+                />
+                <div className="pointer-events-none absolute inset-0 flex flex-col justify-between py-2 items-center text-[8px] font-mono text-slate-600">
+                    <span>MAX</span>
+                    <span>---</span>
+                    <span>---</span>
+                    <span>---</span>
+                    <span>---</span>
+                    <span>0.5x</span>
+                </div>
+             </div>
          </div>
          
-         <div className="mt-auto">
-            <button key="exit" onClick={() => { simulationIdRef.current = 0; setStage('setup'); }} className="p-3 bg-slate-800 rounded-full hover:bg-rose-500 hover:text-white transition text-slate-400">
-                <ArrowLeft className="w-5 h-5" />
-            </button>
-         </div>
+         <button onClick={() => { simulationIdRef.current = 0; setStage('setup'); }} className="p-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 rounded-xl transition" title="Stop & Reset">
+             <Settings2 className="w-5 h-5" />
+         </button>
       </div>
 
-      <div className="flex-1 ml-16 p-4 md:p-8 max-w-7xl mx-auto w-full">
-        <header className="mb-8 flex justify-between items-center">
+      <div className="flex-1 ml-16 p-4 md:p-8 max-w-[1600px] mx-auto w-full">
+        <header className="mb-6 flex justify-between items-center bg-slate-900/50 p-4 rounded-xl border border-slate-800/50 backdrop-blur">
           <div>
-            <h1 className="text-3xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500">
-              LIVE SIMULATION
-            </h1>
-            <div className="flex gap-2 text-sm font-mono text-slate-400 mt-1">
-              <span>Model: {models.find(m => m.id === selectedModel)?.name || selectedModel}</span>
-              <span>•</span>
-              <span>Delay: {delayMs}ms</span>
+            <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                <h1 className="text-xl font-black italic tracking-tighter text-white">
+                LIVE SIMULATION
+                </h1>
             </div>
+            <div className="flex gap-3 text-xs font-mono text-slate-500 mt-1 pl-5">
+              <span>{matchDetail?.match_no ? `Match ${matchDetail.match_no} of ${numMatches}` : 'Starting...'}</span>
+              <span>•</span>
+              <span>Model: {selectedModel || 'Default'}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+               {seriesComplete && <div className="text-emerald-400 font-bold text-sm bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">SERIES COMPLETE</div>}
+               <button onClick={() => setDelayMs(0)} className="px-4 py-2 bg-slate-800 hover:bg-emerald-500 hover:text-slate-900 text-slate-400 font-bold text-xs rounded-lg transition flex items-center gap-2 border border-slate-700 hover:border-emerald-500">
+                 <Zap className="w-3 h-3" /> SKIP TO END
+               </button>
           </div>
         </header>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            <ScoreCardLive detail={matchDetail} live={delayMs > 0 && !seriesComplete && (history.length < numMatches || !matchDetail?.is_wicket)} />
-            <Commentary events={ballEvents} />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-140px)]">
+          {/* Main Scorecard Area */}
+          <div className="lg:col-span-3 flex flex-col gap-6 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 pr-2">
+             <div className="flex-none">
+                <ScoreCardLive detail={matchDetail} live={delayMs > 0 && !seriesComplete && (history.length < numMatches || !matchDetail?.is_wicket)} />
+             </div>
+             
+             {/* Match History Grid */}
+             {history.length > 0 && (
+                <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 sticky top-0 bg-slate-900/95 py-2 z-10 backdrop-blur">Match History</h3>
+                    <div className="flex flex-col gap-8">
+                        {history.map((h, i) => {
+                             const teams = Object.keys(h.scorecard);
+                             const t1 = teams[0];
+                             const t2 = teams[1];
+                             const s1 = h.scorecard[t1];
+                             const s2 = h.scorecard[t2];
+                             
+                             return (
+                                 <div key={i} className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden hover:border-emerald-500/30 transition shadow-lg">
+                                     <div className="bg-slate-900 px-4 py-3 border-b border-slate-800 flex justify-between items-center">
+                                         <span className="text-sm font-bold text-slate-400">MATCH {i+1}</span>
+                                         <span className="text-sm font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">{h.winner} won by {h.margin}</span>
+                                     </div>
+                                     <div className="p-4 grid lg:grid-cols-2 gap-6 bg-slate-900/50">
+                                         <DetailedScorecard teamName={t1} data={s1} />
+                                         <DetailedScorecard teamName={t2} data={s2} />
+                                     </div>
+                                 </div>
+                             );
+                        })}
+                    </div>
+                </div>
+             )}
           </div>
           
-          <div className="space-y-6">
-            {seriesComplete && <SeriesSummary data={seriesComplete} />}
-            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
-               <h3 className="font-bold text-slate-400 mb-4 uppercase text-xs tracking-widest">Controls</h3>
-               <button onClick={() => setDelayMs(0)} className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold rounded-lg transition flex items-center justify-center gap-2 mb-3">
-                 <Zap className="w-4 h-4" /> SKIP / INSTANT
-               </button>
-            </div>
+          {/* Right Sidebar */}
+          <div className="flex flex-col gap-6 h-full min-h-0">
+             <div className="flex-1 min-h-0 bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden flex flex-col">
+                 <div className="p-3 border-b border-slate-800 bg-slate-900/80 backdrop-blur">
+                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Commentary</h3>
+                 </div>
+                <div className="flex-1 overflow-hidden relative">
+                    <div className="absolute inset-0 overflow-y-auto">
+                        <Commentary events={ballEvents} />
+                    </div>
+                </div>
+             </div>
+
+             {(liveSummary) && (
+                 <div className="flex-none h-1/3 min-h-[300px]">
+                     <SeriesSummary 
+                        data={liveSummary} 
+                        isExpanded={showSummaryFull}
+                        onToggleExpand={() => setShowSummaryFull(!showSummaryFull)}
+                     />
+                 </div>
+             )}
           </div>
         </div>
+        {/* Overlay when summary is expanded */}
+        {showSummaryFull && (
+            <div 
+                className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40"
+                onClick={() => setShowSummaryFull(false)}
+            />
+        )}
       </div>
     </div>
   );

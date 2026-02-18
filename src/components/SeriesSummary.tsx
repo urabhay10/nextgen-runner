@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 
 // Define strict types for our summary data structure
 interface SeriesSummaryData {
@@ -12,9 +13,11 @@ interface SeriesSummaryData {
 
 interface SeriesSummaryProps {
   data: SeriesSummaryData;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
-const SeriesSummary = ({ data }: SeriesSummaryProps) => {
+const SeriesSummary = ({ data, isExpanded = false, onToggleExpand }: SeriesSummaryProps) => {
   if (!data || !data.summary) return null;
 
   // 1. Existing Summary Logic
@@ -158,25 +161,34 @@ const SeriesSummary = ({ data }: SeriesSummaryProps) => {
   })() : [];
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 p-4 rounded-xl shadow-xl flex flex-col gap-3 h-full overflow-y-auto max-h-[500px] scrollbar-thin scrollbar-thumb-slate-700">
-      <div className="text-center pb-3 border-b border-slate-800">
+    <div className={`bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 p-4 rounded-xl shadow-xl flex flex-col gap-3 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 ${isExpanded ? 'fixed inset-4 z-50 !max-h-full !h-auto' : 'max-h-[500px]'}`}>
+      <div className="text-center pb-3 border-b border-slate-800 relative">
+        {onToggleExpand && (
+            <button 
+                onClick={onToggleExpand}
+                className="absolute right-0 top-0 p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition"
+                title={isExpanded ? "Collapse" : "Expand Fullscreen"}
+            >
+                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+        )}
         <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-1">Series Result</h3>
-        <div className="text-lg font-black text-white drop-shadow-md leading-none mb-1">
+        <div className={`font-black text-white drop-shadow-md leading-none mb-1 ${isExpanded ? 'text-4xl' : 'text-lg'}`}>
           {summaryText}
         </div>
-        {subText && <div className="text-slate-500 font-mono text-[10px]">{subText}</div>}
+        {subText && <div className={`text-slate-500 font-mono ${isExpanded ? 'text-sm' : 'text-[10px]'}`}>{subText}</div>}
       </div>
 
       {matches.length > 0 && (
-          <div className="space-y-4">
-              <div className="bg-slate-800/50 p-2 rounded text-center">
+          <div className={isExpanded ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4" : "space-y-4"}>
+              <div className={`bg-slate-800/50 p-2 rounded text-center ${isExpanded ? 'col-span-full' : ''}`}>
                   <div className="text-[10px] text-slate-400 uppercase">Avg Score per Innings</div>
-                  <div className="text-sm font-bold text-white">{avgScore}</div>
+                  <div className={`font-bold text-white ${isExpanded ? 'text-2xl' : 'text-sm'}`}>{avgScore}</div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className={isExpanded ? "col-span-1 space-y-4" : "grid grid-cols-1 md:grid-cols-2 gap-2"}>
                  {/* Top Batters */}
-                 <div className="bg-slate-800/30 p-2 rounded">
+                 <div className={`bg-slate-800/30 p-2 rounded ${isExpanded ? 'h-full' : ''}`}>
                     <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 border-b border-slate-700 pb-1">Top Batters</h4>
                     <div className="grid grid-cols-5 text-[9px] text-slate-500 uppercase mb-1 text-right">
                         <div className="col-span-1 text-left">Name</div>
@@ -199,7 +211,7 @@ const SeriesSummary = ({ data }: SeriesSummaryProps) => {
                  </div>
 
                  {/* Top Bowlers */}
-                 <div className="bg-slate-800/30 p-2 rounded">
+                 <div className={`bg-slate-800/30 p-2 rounded ${isExpanded ? 'h-full' : ''}`}>
                     <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 border-b border-slate-700 pb-1">Top Bowlers</h4>
                     <div className="grid grid-cols-5 text-[9px] text-slate-500 uppercase mb-1 text-right">
                         <div className="col-span-1 text-left">Name</div>
@@ -222,8 +234,9 @@ const SeriesSummary = ({ data }: SeriesSummaryProps) => {
                  </div>
               </div>
 
-              <div className="space-y-1">
+              <div className={`space-y-1 ${isExpanded ? 'col-span-2' : ''}`}>
                   <h4 className="text-[10px] font-bold text-slate-500 uppercase">Match Log</h4>
+                  <div className={isExpanded ? "grid grid-cols-2 gap-2" : ""}>
                   {matches.map((m, i) => {
                       const teams = Object.keys(m.scorecard);
                       const t1 = teams[0];
@@ -245,6 +258,7 @@ const SeriesSummary = ({ data }: SeriesSummaryProps) => {
                           <div className="text-[9px] text-slate-500 italic mt-0.5 text-right">{m.margin === 'Tie' ? 'Scores Level' : `Won by ${m.margin}`}</div>
                       </div>
                   )})}
+                  </div>
               </div>
           </div>
       )}
