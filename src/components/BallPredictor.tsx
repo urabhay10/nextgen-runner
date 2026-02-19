@@ -21,7 +21,8 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
     wickets: 4,
     striker_name: "V Kohli",
     bowler_name: "MA Starc",
-    target: ""
+    target: "",
+    batsman_score: 35
   });
   const [results, setResults] = useState<any[]>([]); // Array of { modelName, data }
   const [loading, setLoading] = useState(false);
@@ -79,7 +80,8 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
        try {
         const payload = {
           ...form,
-          target: form.innings === 2 && form.target ? parseInt(form.target) : null
+          target: form.innings === 2 && form.target ? parseInt(form.target) : null,
+          batsman_score: typeof form.batsman_score === 'string' ? parseInt(form.batsman_score) || 0 : form.batsman_score
         };
 
         const res = await fetch(getApiUrl('/predict_ball'), {
@@ -104,7 +106,8 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
     try {
       const payload = {
         ...form,
-        target: form.innings === 2 && form.target ? parseInt(form.target) : null
+        target: form.innings === 2 && form.target ? parseInt(form.target) : null,
+        batsman_score: typeof form.batsman_score === 'string' ? parseInt(form.batsman_score) || 0 : form.batsman_score
       };
 
       const promises = models.map(async (model) => {
@@ -233,6 +236,16 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
                 onChange={(e) => handleChange('total_runs', e.target.value === '' ? '' : parseInt(e.target.value))} 
                 className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-white focus:border-purple-500 outline-none" 
             />
+          </div>
+          
+          <div>
+              <label className="text-[10px] uppercase font-bold text-slate-500 mb-1 block">Batsman Score</label>
+              <input 
+                type="number" 
+                value={form.batsman_score} 
+                onChange={(e) => handleChange('batsman_score', e.target.value === '' ? '' : parseInt(e.target.value))} 
+                className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-white focus:border-purple-500 outline-none" 
+              />
           </div>
 
           <div className="space-y-4 pt-2 border-t border-slate-800">

@@ -21,7 +21,46 @@ export default function ModelSimulation({ model, payload, start }: ModelSimulati
 
   const [seriesComplete, setSeriesComplete] = useState<SeriesSummaryData | null>(null);
   const [status, setStatus] = useState<'idle' | 'running' | 'complete' | 'error'>('idle');
+  const [isExpanded, setIsExpanded] = useState(false);
   const simulationIdRef = useRef(0);
+
+  // Helper to calculate summary from completed matches
+  const getLiveSummary = () => {
+    if (seriesComplete) return { ...seriesComplete, matches: completedMatches };
+    if (completedMatches.length === 0) return null;
+
+    const team1Name = payload.team1_name;
+    const team2Name = payload.team2_name;
+
+    let t1Wins = 0;
+    let t2Wins = 0;
+    let ties = 0;
+    
+    for (const h of completedMatches) {
+        if (h.winner === team1Name) t1Wins++;
+        else if (h.winner === team2Name) t2Wins++;
+        else if (h.winner === 'Tie') ties++;
+    }
+
+    let header = "Series in Progress";
+    if (t1Wins > t2Wins) header = `${team1Name} leads ${t1Wins}-${t2Wins}`;
+    else if (t2Wins > t1Wins) header = `${team2Name} leads ${t2Wins}-${t1Wins}`;
+    else header = `Series Level ${t1Wins}-${t2Wins}`;
+
+    if (ties > 0) header += ` (${ties} ties)`;
+
+    return {
+        summary: { 
+            scoreline: header,
+            [team1Name]: t1Wins,
+            [team2Name]: t2Wins,
+            Tie: ties
+        },
+        matches: completedMatches
+    };
+  };
+
+  const liveSummary = getLiveSummary();
 
   useEffect(() => {
     if (!start) return;
@@ -125,23 +164,31 @@ export default function ModelSimulation({ model, payload, start }: ModelSimulati
         </span>
       </div>
       
-      <div className="p-4 flex-1 flex flex-col gap-4">
+      <div className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto">
         {matchDetail ? (
-           <div className="scale-90 origin-top-left w-[111%] -mb-4">
+           <div className={`transition-all duration-300 ${isExpanded ? 'opacity-0 h-0 overflow-hidden' : 'scale-90 origin-top-left w-[111%] -mb-4'}`}>
              <ScoreCardLive detail={matchDetail} live={status === 'running'} />
            </div>
         ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-600 text-xs font-mono">
+            <div className={`flex-1 flex items-center justify-center text-slate-600 text-xs font-mono transition-all ${isExpanded ? 'opacity-0 h-0 overflow-hidden' : ''}`}>
                 {status === 'running' ? 'Starting...' : 'Waiting to start...'}
             </div>
         )}
         
-        {seriesComplete && (
-            <div className="mt-auto pt-4 border-t border-slate-800">
-                <SeriesSummary data={{...seriesComplete, matches: completedMatches}} />
+        {liveSummary && (
+            <div className={`mt-auto pt-4 border-t border-slate-800 transition-all duration-300 ${isExpanded ? 'flex-1' : 'min-h-[300px]'}`}>
+                <SeriesSummary 
+                  data={liveSummary} 
+                  isExpanded={isExpanded}
+                  onToggleExpand={() => setIsExpanded(!isExpanded)}
+                />
             </div>
         )}
       </div>
+      
+      {isExpanded && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40" onClick={() => setIsExpanded(false)} />
+      )}
     </div>
   );
 }
