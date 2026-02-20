@@ -45,6 +45,17 @@ export default function CompareModels() {
     setTeam({ ...team, players: n });
   };
 
+  const bulkPastePlayer = (tId: 1 | 2, startIdx: number, values: string[]) => {
+    const team = tId === 1 ? team1 : team2;
+    const setTeam = tId === 1 ? setTeam1 : setTeam2;
+    const n = [...team.players];
+    values.forEach((v, offset) => {
+      const slot = startIdx + offset;
+      if (slot < n.length) n[slot] = v;
+    });
+    setTeam({ ...team, players: n });
+  };
+
   const startComparison = () => {
     setStage('live');
   };
@@ -70,8 +81,10 @@ export default function CompareModels() {
           {team1.players.map((p, i) => (
             <PlayerInput 
               key={i} 
-              value={p} 
+              value={p}
+              index={i}
               onChange={v => updatePlayer(1, i, v)} 
+              onBulkPaste={values => bulkPastePlayer(1, i, values)}
               placeholder={`Player ${i + 1}`} 
             />
           ))}
@@ -86,8 +99,10 @@ export default function CompareModels() {
           {team2.players.map((p, i) => (
             <PlayerInput 
               key={i} 
-              value={p} 
+              value={p}
+              index={i}
               onChange={v => updatePlayer(2, i, v)} 
+              onBulkPaste={values => bulkPastePlayer(2, i, values)}
               placeholder={`Player ${i + 1}`} 
             />
           ))}

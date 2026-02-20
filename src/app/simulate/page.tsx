@@ -153,6 +153,17 @@ export default function Simulator() {
     else { const n = [...team2.players]; n[idx] = v; setTeam2({ ...team2, players: n }); }
   };
 
+  const bulkPastePlayer = (tId: 1 | 2, startIdx: number, values: string[]) => {
+    const team = tId === 1 ? team1 : team2;
+    const setTeam = tId === 1 ? setTeam1 : setTeam2;
+    const n = [...team.players];
+    values.forEach((v, offset) => {
+      const slot = startIdx + offset;
+      if (slot < n.length) n[slot] = v;
+    });
+    setTeam({ ...team, players: n });
+  };
+
   const getLiveSummary = () => {
     if (seriesComplete) return { ...seriesComplete, matches: history };
     if (history.length === 0) return null;
@@ -331,7 +342,9 @@ export default function Simulator() {
             <PlayerInput 
               key={i} 
               value={p} 
-              onChange={v => updatePlayer(1, i, v)} 
+              index={i}
+              onChange={v => updatePlayer(1, i, v)}
+              onBulkPaste={values => bulkPastePlayer(1, i, values)}
               placeholder={`Player ${i + 1}`} 
             />
           ))}
@@ -347,7 +360,9 @@ export default function Simulator() {
             <PlayerInput 
               key={i} 
               value={p} 
-              onChange={v => updatePlayer(2, i, v)} 
+              index={i}
+              onChange={v => updatePlayer(2, i, v)}
+              onBulkPaste={values => bulkPastePlayer(2, i, values)}
               placeholder={`Player ${i + 1}`} 
             />
           ))}

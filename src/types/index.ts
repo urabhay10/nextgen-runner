@@ -1,13 +1,16 @@
 export interface Player {
   name: string;
-  role: string;
+  can_bowl: boolean;
+  matches: number;
+  id: string;
 }
 
 export interface PlayerInputProps {
   value: string;
   onChange: (value: string) => void;
+  onBulkPaste?: (values: string[]) => void;
   placeholder?: string;
-  className?: string;
+  index?: number;
 }
 
 export interface PlayerStats {
