@@ -2,6 +2,7 @@
 
 import { Users, Crosshair } from 'lucide-react';
 import { MatchDetail } from '@/types';
+import PlayerLink from './PlayerLink';
 
 interface ScoreCardLiveProps {
   detail: MatchDetail | null;
@@ -69,14 +70,18 @@ const ScoreCardLive = ({ detail, live }: ScoreCardLiveProps) => {
             <div className="flex justify-between items-center mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                <span className="font-bold text-white text-lg tracking-tight">{striker.name}</span>
+                <PlayerLink name={striker.name}>
+                  <span className="font-bold text-white text-lg tracking-tight cursor-default">{striker.name}</span>
+                </PlayerLink>
               </div>
               <div className="font-mono text-emerald-400 text-xl font-bold">{striker.runs}<span className="text-slate-500 text-sm ml-1 font-medium">({striker.balls})</span></div>
             </div>
           )}
           {non_striker && (
             <div className="flex justify-between items-center opacity-60">
-              <span className="text-slate-300 font-medium pl-4.5">{non_striker.name}</span>
+              <PlayerLink name={non_striker.name}>
+                <span className="text-slate-300 font-medium pl-4.5 cursor-default">{non_striker.name}</span>
+              </PlayerLink>
               <span className="font-mono text-slate-400">{non_striker.runs}<span className="text-slate-600 text-sm ml-1">({non_striker.balls})</span></span>
             </div>
           )}
@@ -90,7 +95,9 @@ const ScoreCardLive = ({ detail, live }: ScoreCardLiveProps) => {
           {bowler && (
             <div>
               <div className="flex justify-between items-center mb-4">
-                <span className="font-bold text-rose-300 text-lg tracking-tight">{bowler.name}</span>
+                <PlayerLink name={bowler.name}>
+                  <span className="font-bold text-rose-300 text-lg tracking-tight cursor-default">{bowler.name}</span>
+                </PlayerLink>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-slate-800/50 rounded p-1 text-center border border-white/5">

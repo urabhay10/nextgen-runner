@@ -1,6 +1,7 @@
 'use client';
 
 import { ScorecardData } from '@/types';
+import PlayerLink from './PlayerLink';
 
 interface DetailedScorecardProps {
   teamName: string;
@@ -48,9 +49,11 @@ const DetailedScorecard = ({ teamName, data }: DetailedScorecardProps) => {
                     <tr key={i} className={!b.out && b.balls > 0 ? "bg-emerald-900/10" : ""}>
                       <td className="text-l">
                         <div className="flex flex-col">
-                          <span className={`${b.out ? 'text-slate-400' : (didBat ? 'text-emerald-400 font-bold' : 'text-slate-500')}`}>
-                            {b.name} {!b.out && didBat ? '*' : ''}
-                          </span>
+                          <PlayerLink name={b.name}>
+                            <span className={`cursor-default ${b.out ? 'text-slate-400' : (didBat ? 'text-emerald-400 font-bold' : 'text-slate-500')}`}>
+                              {b.name} {!b.out && didBat ? '*' : ''}
+                            </span>
+                          </PlayerLink>
                           <span className="text-[10px] text-slate-500 font-normal lowercase">
                              {b.out ? (b.out_by ? `out by ${b.out_by}` : 'out') : (didBat ? 'not out' : '')}
                           </span>
@@ -102,7 +105,11 @@ const DetailedScorecard = ({ teamName, data }: DetailedScorecardProps) => {
 
                     return (
                       <tr key={i}>
-                        <td className="text-l text-rose-300 font-medium">{b.name}</td>
+                        <td className="text-l text-rose-300 font-medium">
+                          <PlayerLink name={b.name}>
+                            <span className="cursor-default">{b.name}</span>
+                          </PlayerLink>
+                        </td>
                         <td className="text-c text-slate-300">{oversDisplay}</td>
                         <td className="text-c text-slate-500">{maidens}</td>
                         <td className="text-c text-slate-300">{runs}</td>

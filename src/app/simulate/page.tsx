@@ -330,14 +330,18 @@ export default function Simulator() {
           </Link>
         <h1 className="text-5xl font-black bg-gradient-to-r from-emerald-400 to-cyan-500 bg-clip-text text-transparent tracking-tight">CRICKET SERIES SIMULATOR</h1>
       </header>
-      <div className="grid md:grid-cols-2 gap-12">
-        <div className="space-y-4">
-          <input 
-            value={team1.name} 
-            onChange={e => setTeam1({ ...team1, name: e.target.value })} 
-            className="w-full bg-transparent text-2xl font-bold border-b-2 border-slate-700 focus:border-emerald-500 outline-none pb-2 text-emerald-400" 
-            placeholder="Team 1" 
-          />
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Team 1 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-800">
+            <div className="w-1.5 h-8 rounded-full bg-emerald-500"></div>
+            <input
+              value={team1.name}
+              onChange={e => setTeam1({ ...team1, name: e.target.value })}
+              className="flex-1 bg-transparent text-xl font-black text-white outline-none placeholder-slate-600 tracking-wide"
+              placeholder="Team 1"
+            />
+          </div>
           {team1.players.map((p, i) => (
             <PlayerInput 
               key={i} 
@@ -349,13 +353,18 @@ export default function Simulator() {
             />
           ))}
         </div>
-        <div className="space-y-4 text-right">
-          <input 
-            value={team2.name} 
-            onChange={e => setTeam2({ ...team2, name: e.target.value })} 
-            className="w-full bg-transparent text-2xl font-bold border-b-2 border-slate-700 focus:border-rose-500 outline-none pb-2 text-rose-400 text-right" 
-            placeholder="Team 2" 
-          />
+
+        {/* Team 2 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-800">
+            <div className="w-1.5 h-8 rounded-full bg-rose-500"></div>
+            <input
+              value={team2.name}
+              onChange={e => setTeam2({ ...team2, name: e.target.value })}
+              className="flex-1 bg-transparent text-xl font-black text-white outline-none placeholder-slate-600 tracking-wide"
+              placeholder="Team 2"
+            />
+          </div>
           {team2.players.map((p, i) => (
             <PlayerInput 
               key={i} 
@@ -368,30 +377,28 @@ export default function Simulator() {
           ))}
         </div>
       </div>
-      <div className="mt-16 flex flex-col items-center gap-6">
-         <div className="flex gap-8 items-center bg-slate-900/50 p-6 rounded-2xl border border-slate-800 backdrop-blur">
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Matches to Simulate</span>
-            <input 
-              type="number" 
-              value={numMatches} 
-              onChange={e => setNumMatches(Math.max(1, parseInt(e.target.value) || 1))} 
-              className="bg-slate-800 w-24 p-3 text-center text-xl font-bold text-emerald-400 border border-slate-700 rounded-lg outline-none focus:border-emerald-500 transition"
+      <div className="mt-12 flex flex-col items-center gap-5">
+        {/* Config row */}
+        <div className="flex items-stretch gap-0 rounded-xl border border-slate-800 overflow-hidden bg-slate-900/60 divide-x divide-slate-800">
+          <div className="flex flex-col justify-center px-6 py-4 gap-1">
+            <span className="text-[9px] uppercase font-black text-slate-500 tracking-widest">Matches</span>
+            <input
+              type="number"
+              value={numMatches}
+              onChange={e => setNumMatches(Math.max(1, parseInt(e.target.value) || 1))}
+              className="bg-transparent w-16 text-2xl font-black text-emerald-400 outline-none tabular-nums"
             />
           </div>
-
-          <div className="h-12 w-px bg-slate-800 mx-4"></div>
-
-          <div className="flex flex-col gap-2 w-64">
-            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">AI Model</span>
-            <select 
+          <div className="flex flex-col justify-center px-6 py-4 gap-1 min-w-[200px]">
+            <span className="text-[9px] uppercase font-black text-slate-500 tracking-widest">AI Model</span>
+            <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="bg-slate-800 p-3 text-sm font-bold text-white border border-slate-700 rounded-lg outline-none focus:border-cyan-500 transition appearance-none"
+              className="bg-transparent text-sm font-bold text-cyan-400 outline-none cursor-pointer appearance-none"
             >
-              <option value="">Default Backend Model</option>
+              <option value="" className="bg-slate-900">Default</option>
               {models.map(m => (
-                <option key={m.id} value={m.id}>{m.id}</option>
+                <option key={m.id} value={m.id} className="bg-slate-900">{m.id}</option>
               ))}
             </select>
           </div>

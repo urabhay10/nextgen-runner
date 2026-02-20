@@ -70,61 +70,77 @@ export default function CompareModels() {
         <p className="text-slate-400 mt-2 font-mono text-sm">Run parallel simulations across multiple AI models</p>
       </header>
 
-      <div className="grid md:grid-cols-2 gap-12">
-        <div className="space-y-4">
-          <input 
-            value={team1.name} 
-            onChange={e => setTeam1({ ...team1, name: e.target.value })} 
-            className="w-full bg-transparent text-2xl font-bold border-b-2 border-slate-700 focus:border-blue-500 outline-none pb-2 text-blue-400" 
-            placeholder="Team 1" 
-          />
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* Team 1 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-800">
+            <div className="w-1.5 h-8 rounded-full bg-blue-500"></div>
+            <input
+              value={team1.name}
+              onChange={e => setTeam1({ ...team1, name: e.target.value })}
+              className="flex-1 bg-transparent text-xl font-black text-white outline-none placeholder-slate-600 tracking-wide"
+              placeholder="Team 1"
+            />
+          </div>
           {team1.players.map((p, i) => (
-            <PlayerInput 
-              key={i} 
+            <PlayerInput
+              key={i}
               value={p}
               index={i}
-              onChange={v => updatePlayer(1, i, v)} 
+              onChange={v => updatePlayer(1, i, v)}
               onBulkPaste={values => bulkPastePlayer(1, i, values)}
-              placeholder={`Player ${i + 1}`} 
+              placeholder={`Player ${i + 1}`}
             />
           ))}
         </div>
-        <div className="space-y-4 text-right">
-          <input 
-            value={team2.name} 
-            onChange={e => setTeam2({ ...team2, name: e.target.value })} 
-            className="w-full bg-transparent text-2xl font-bold border-b-2 border-slate-700 focus:border-indigo-500 outline-none pb-2 text-indigo-400 text-right" 
-            placeholder="Team 2" 
-          />
+
+        {/* Team 2 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-800">
+            <div className="w-1.5 h-8 rounded-full bg-indigo-500"></div>
+            <input
+              value={team2.name}
+              onChange={e => setTeam2({ ...team2, name: e.target.value })}
+              className="flex-1 bg-transparent text-xl font-black text-white outline-none placeholder-slate-600 tracking-wide"
+              placeholder="Team 2"
+            />
+          </div>
           {team2.players.map((p, i) => (
-            <PlayerInput 
-              key={i} 
+            <PlayerInput
+              key={i}
               value={p}
               index={i}
-              onChange={v => updatePlayer(2, i, v)} 
+              onChange={v => updatePlayer(2, i, v)}
               onBulkPaste={values => bulkPastePlayer(2, i, values)}
-              placeholder={`Player ${i + 1}`} 
+              placeholder={`Player ${i + 1}`}
             />
           ))}
         </div>
       </div>
 
-      <div className="mt-16 flex flex-col items-center gap-6">
-        <div className="flex items-center gap-4 bg-slate-800 p-3 rounded-xl border border-slate-700">
-          <span className="text-slate-400 font-bold">Games per Model:</span>
-          <input 
-            type="number" 
-            value={numMatches} 
-            onChange={e => setNumMatches(Math.max(1, parseInt(e.target.value) || 1))} 
-            className="bg-slate-900 w-16 p-1 text-center font-bold text-blue-400 border border-slate-700 rounded text-white"
-          />
+      <div className="mt-12 flex flex-col items-center gap-5">
+        {/* Config row */}
+        <div className="flex items-stretch gap-0 rounded-xl border border-slate-800 overflow-hidden bg-slate-900/60 divide-x divide-slate-800">
+          <div className="flex flex-col justify-center px-6 py-4 gap-1">
+            <span className="text-[9px] uppercase font-black text-slate-500 tracking-widest">Games / Model</span>
+            <input
+              type="number"
+              value={numMatches}
+              onChange={e => setNumMatches(Math.max(1, parseInt(e.target.value) || 1))}
+              className="bg-transparent w-16 text-2xl font-black text-blue-400 outline-none tabular-nums"
+            />
+          </div>
+          <div className="flex flex-col justify-center px-6 py-4 gap-1">
+            <span className="text-[9px] uppercase font-black text-slate-500 tracking-widest">Models</span>
+            <span className="text-2xl font-black text-indigo-400 tabular-nums">{models.length}</span>
+          </div>
         </div>
-        
-        <button 
+
+        <button
           onClick={startComparison}
-          className="px-12 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl font-black text-xl text-white shadow-xl shadow-blue-900/20 hover:scale-105 active:scale-95 transition-all"
+          className="px-12 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl font-black text-base text-white shadow-lg shadow-blue-900/30 hover:scale-105 active:scale-95 transition-all tracking-wide"
         >
-          START COMPARISON ({models.length} Models)
+          START COMPARISON
         </button>
       </div>
     </div>

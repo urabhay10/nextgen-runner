@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, KeyboardEvent, useCallback } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { Player } from '@/types';
 import { getApiUrl } from '@/lib/api';
 
@@ -154,10 +155,22 @@ const PlayerInput = ({ value, onChange, onBulkPaste, placeholder, index }: Playe
                 </span>
                 {/* Bowl tag only if can bowl */}
                 {canBowl(s) && (
-                  <span className="ml-2 flex-shrink-0 text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
+                  <span className="mx-2 flex-shrink-0 text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
                     Bowl
                   </span>
                 )}
+                {/* Stats link */}
+                <a
+                  href={`/player/${encodeURIComponent(s.name)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex-shrink-0 p-1 rounded text-slate-600 hover:text-cyan-400 transition-colors"
+                  title="View stats"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                </a>
               </li>
             ))}
           </ul>
