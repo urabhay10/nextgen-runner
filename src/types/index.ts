@@ -1,8 +1,11 @@
 export interface Player {
   name: string;
-  can_bowl: boolean;
-  matches: number;
-  id: string;
+  id: string | number;
+  // New backend fields
+  can_bowl?: boolean;
+  matches?: number;
+  // Legacy backend field
+  role?: string;
 }
 
 export interface PlayerInputProps {
