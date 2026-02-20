@@ -242,7 +242,6 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
                 value={form.striker_name}
                 onChange={(v) => handleChange('striker_name', v)}
                 placeholder="Enter Batter Name"
-                className="w-full bg-slate-800 border border-emerald-500/30 rounded p-2 text-sm text-white focus:border-emerald-500 outline-none"
               />
             </div>
             <div>
@@ -251,7 +250,6 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
                 value={form.bowler_name}
                 onChange={(v) => handleChange('bowler_name', v)}
                 placeholder="Enter Bowler Name"
-                className="w-full bg-slate-800 border border-rose-500/30 rounded p-2 text-sm text-white focus:border-rose-500 outline-none"
               />
             </div>
           </div>
