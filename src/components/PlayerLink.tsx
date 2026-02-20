@@ -20,14 +20,12 @@ export default function PlayerLink({ name, id, children, className }: PlayerLink
   const open = () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); setShow(true); };
   const close = () => { timeoutRef.current = setTimeout(() => setShow(false), 120); };
 
-  const href = id != null
-    ? `/player/${id}`
-    : `/player/search?name=${encodeURIComponent(name)}`;
+  const href = id != null ? `/player/${id}` : null;
 
   return (
     <span className={`relative inline-block ${className ?? ''}`} onMouseEnter={open} onMouseLeave={close}>
       {children}
-      {show && (
+      {show && href && (
         <a
           href={href}
           target="_blank"

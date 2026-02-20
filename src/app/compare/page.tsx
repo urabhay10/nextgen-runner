@@ -12,6 +12,7 @@ export default function CompareModels() {
   const [stage, setStage] = useState<'setup' | 'live'>('setup');
   const [numMatches, setNumMatches] = useState(1);
   const [models, setModels] = useState<Model[]>([]);
+  const [playerIdMap, setPlayerIdMap] = useState<Record<string, string | number>>({});
   
   const [team1, setTeam1] = useState({ 
       name: "India", 
@@ -88,6 +89,7 @@ export default function CompareModels() {
               value={p}
               index={i}
               onChange={v => updatePlayer(1, i, v)}
+              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [name]: id })); }}
               onBulkPaste={values => bulkPastePlayer(1, i, values)}
               placeholder={`Player ${i + 1}`}
             />
@@ -111,6 +113,7 @@ export default function CompareModels() {
               value={p}
               index={i}
               onChange={v => updatePlayer(2, i, v)}
+              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [name]: id })); }}
               onBulkPaste={values => bulkPastePlayer(2, i, values)}
               placeholder={`Player ${i + 1}`}
             />
@@ -164,6 +167,7 @@ export default function CompareModels() {
             key={model.id} 
             model={model} 
             start={true}
+            playerIdMap={playerIdMap}
             payload={{
                team1_name: team1.name,
                team1_players: team1.players,

@@ -17,6 +17,7 @@ export default function Simulator() {
   const [numMatches, setNumMatches] = useState(1);
   const [team1, setTeam1] = useState({ name: "India", players: Array(11).fill("") });
   const [team2, setTeam2] = useState({ name: "Australia", players: Array(11).fill("") });
+  const [playerIdMap, setPlayerIdMap] = useState<Record<string, string | number>>({});
   
   // Models
   const [models, setModels] = useState<Model[]>([]);
@@ -348,6 +349,7 @@ export default function Simulator() {
               value={p} 
               index={i}
               onChange={v => updatePlayer(1, i, v)}
+              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [name]: id })); }}
               onBulkPaste={values => bulkPastePlayer(1, i, values)}
               placeholder={`Player ${i + 1}`} 
             />
@@ -371,6 +373,7 @@ export default function Simulator() {
               value={p} 
               index={i}
               onChange={v => updatePlayer(2, i, v)}
+              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [name]: id })); }}
               onBulkPaste={values => bulkPastePlayer(2, i, values)}
               placeholder={`Player ${i + 1}`} 
             />
@@ -515,7 +518,7 @@ export default function Simulator() {
           {/* Main Scorecard Area */}
           <div className="lg:col-span-3 flex flex-col gap-6 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 pr-2">
              <div className="flex-none">
-                <ScoreCardLive detail={matchDetail} live={delayMs > 0 && !seriesComplete && (history.length < numMatches || !matchDetail?.is_wicket)} />
+                <ScoreCardLive detail={matchDetail} live={delayMs > 0 && !seriesComplete && (history.length < numMatches || !matchDetail?.is_wicket)} playerIdMap={playerIdMap} />
              </div>
              
              {/* Match History Grid */}
@@ -537,8 +540,8 @@ export default function Simulator() {
                                          <span className="text-sm font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">{h.winner} won by {h.margin}</span>
                                      </div>
                                      <div className="p-4 grid lg:grid-cols-2 gap-6 bg-slate-900/50">
-                                         <DetailedScorecard teamName={t1} data={s1} />
-                                         <DetailedScorecard teamName={t2} data={s2} />
+                                         <DetailedScorecard teamName={t1} data={s1} playerIdMap={playerIdMap} />
+                                         <DetailedScorecard teamName={t2} data={s2} playerIdMap={playerIdMap} />
                                      </div>
                                  </div>
                              );

@@ -10,9 +10,10 @@ interface ModelSimulationProps {
   model: Model;
   payload: any;
   start: boolean;
+  playerIdMap?: Record<string, string | number>;
 }
 
-export default function ModelSimulation({ model, payload, start }: ModelSimulationProps) {
+export default function ModelSimulation({ model, payload, start, playerIdMap }: ModelSimulationProps) {
   const [matchDetail, setMatchDetail] = useState<BallEvent | null>(null);
   
   // New state to partial aggregate data
@@ -128,7 +129,7 @@ export default function ModelSimulation({ model, payload, start }: ModelSimulati
       <div className="p-4 flex-1 flex flex-col gap-4">
         {matchDetail ? (
            <div className="scale-90 origin-top-left w-[111%] -mb-4">
-             <ScoreCardLive detail={matchDetail} live={status === 'running'} />
+             <ScoreCardLive detail={matchDetail} live={status === 'running'} playerIdMap={playerIdMap} />
            </div>
         ) : (
             <div className="flex-1 flex items-center justify-center text-slate-600 text-xs font-mono">

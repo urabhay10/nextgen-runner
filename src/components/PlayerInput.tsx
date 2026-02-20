@@ -8,12 +8,13 @@ import { getApiUrl } from '@/lib/api';
 interface PlayerInputProps {
   value: string;
   onChange: (value: string) => void;
+  onSelectPlayer?: (name: string, id?: string | number) => void;
   onBulkPaste?: (values: string[]) => void;
   placeholder?: string;
   index?: number;
 }
 
-const PlayerInput = ({ value, onChange, onBulkPaste, placeholder, index }: PlayerInputProps) => {
+const PlayerInput = ({ value, onChange, onSelectPlayer, onBulkPaste, placeholder, index }: PlayerInputProps) => {
   const [suggestions, setSuggestions] = useState<Player[]>([]);
   const [show, setShow] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -72,6 +73,7 @@ const PlayerInput = ({ value, onChange, onBulkPaste, placeholder, index }: Playe
 
   const handleSelect = (player: Player) => {
     onChange(player.name);
+    onSelectPlayer?.(player.name, player.id);
     setShow(false);
     setSuggestions([]);
     setSelectedIndex(-1);
@@ -161,7 +163,7 @@ const PlayerInput = ({ value, onChange, onBulkPaste, placeholder, index }: Playe
                 )}
                 {/* Stats link */}
                 <a
-                  href={`/player/${encodeURIComponent(s.name)}`}
+                  href={s.id != null ? `/player/${s.id}` : `/player/search?name=${encodeURIComponent(s.name)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   onMouseDown={(e) => e.stopPropagation()}

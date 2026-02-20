@@ -6,9 +6,10 @@ import PlayerLink from './PlayerLink';
 interface DetailedScorecardProps {
   teamName: string;
   data: ScorecardData;
+  playerIdMap?: Record<string, string | number>;
 }
 
-const DetailedScorecard = ({ teamName, data }: DetailedScorecardProps) => {
+const DetailedScorecard = ({ teamName, data, playerIdMap }: DetailedScorecardProps) => {
   if (!data) return null;
 
   return (
@@ -49,7 +50,7 @@ const DetailedScorecard = ({ teamName, data }: DetailedScorecardProps) => {
                     <tr key={i} className={!b.out && b.balls > 0 ? "bg-emerald-900/10" : ""}>
                       <td className="text-l">
                         <div className="flex flex-col">
-                          <PlayerLink name={b.name}>
+                          <PlayerLink name={b.name} id={playerIdMap?.[b.name]}>
                             <span className={`cursor-default ${b.out ? 'text-slate-400' : (didBat ? 'text-emerald-400 font-bold' : 'text-slate-500')}`}>
                               {b.name} {!b.out && didBat ? '*' : ''}
                             </span>
@@ -106,7 +107,7 @@ const DetailedScorecard = ({ teamName, data }: DetailedScorecardProps) => {
                     return (
                       <tr key={i}>
                         <td className="text-l text-rose-300 font-medium">
-                          <PlayerLink name={b.name}>
+                          <PlayerLink name={b.name} id={playerIdMap?.[b.name]}>
                             <span className="cursor-default">{b.name}</span>
                           </PlayerLink>
                         </td>

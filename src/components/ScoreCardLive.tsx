@@ -7,9 +7,10 @@ import PlayerLink from './PlayerLink';
 interface ScoreCardLiveProps {
   detail: MatchDetail | null;
   live: boolean;
+  playerIdMap?: Record<string, string | number>;
 }
 
-const ScoreCardLive = ({ detail, live }: ScoreCardLiveProps) => {
+const ScoreCardLive = ({ detail, live, playerIdMap }: ScoreCardLiveProps) => {
   if (!detail) return null;
   const { striker, non_striker, bowler, total_runs = 0, wickets = 0, bat_team = "", target, over = 0, ball = 0 } = detail || {};
 
@@ -70,7 +71,7 @@ const ScoreCardLive = ({ detail, live }: ScoreCardLiveProps) => {
             <div className="flex justify-between items-center mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                <PlayerLink name={striker.name}>
+                <PlayerLink name={striker.name} id={playerIdMap?.[striker.name]}>
                   <span className="font-bold text-white text-lg tracking-tight cursor-default">{striker.name}</span>
                 </PlayerLink>
               </div>
@@ -79,7 +80,7 @@ const ScoreCardLive = ({ detail, live }: ScoreCardLiveProps) => {
           )}
           {non_striker && (
             <div className="flex justify-between items-center opacity-60">
-              <PlayerLink name={non_striker.name}>
+              <PlayerLink name={non_striker.name} id={playerIdMap?.[non_striker.name]}>
                 <span className="text-slate-300 font-medium pl-4.5 cursor-default">{non_striker.name}</span>
               </PlayerLink>
               <span className="font-mono text-slate-400">{non_striker.runs}<span className="text-slate-600 text-sm ml-1">({non_striker.balls})</span></span>
@@ -95,7 +96,7 @@ const ScoreCardLive = ({ detail, live }: ScoreCardLiveProps) => {
           {bowler && (
             <div>
               <div className="flex justify-between items-center mb-4">
-                <PlayerLink name={bowler.name}>
+                <PlayerLink name={bowler.name} id={playerIdMap?.[bowler.name]}>
                   <span className="font-bold text-rose-300 text-lg tracking-tight cursor-default">{bowler.name}</span>
                 </PlayerLink>
               </div>
