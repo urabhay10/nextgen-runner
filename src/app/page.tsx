@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Play, BrainCircuit, Settings2, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -60,6 +60,16 @@ export default function Home() {
 
 	const prev = useCallback(() => setCenter(c => c - 1), []);
 	const next = useCallback(() => setCenter(c => c + 1), []);
+
+	// Arrow key navigation
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+			else if (e.key === 'ArrowRight') { e.preventDefault(); next(); }
+		};
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [prev, next]);;
 
 	const wheelCooldown = useRef(false);
 	const handleWheel = useCallback((e: React.WheelEvent) => {

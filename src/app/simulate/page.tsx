@@ -582,9 +582,11 @@ export default function Simulator() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-               <button onClick={() => { setDelayMs(0); setPaused(false); }} className="px-4 py-2 bg-[var(--surface-2)] hover:bg-[var(--sage-green)] hover:text-[var(--background)] text-[var(--muted)] font-bold text-xs rounded-lg transition flex items-center gap-2 border border-[var(--border)] hover:border-[var(--sage-green)]">
-                 <Zap className="w-3 h-3" /> GO LIVE
-               </button>
+               {delayMs > 0 && !seriesComplete && (
+                 <button onClick={() => { setDelayMs(0); setPaused(false); }} className="px-4 py-2 bg-[var(--surface-2)] hover:bg-[var(--sage-green)] hover:text-[var(--background)] text-[var(--muted)] font-bold text-xs rounded-lg transition flex items-center gap-2 border border-[var(--border)] hover:border-[var(--sage-green)]">
+                   <Zap className="w-3 h-3" /> GO LIVE
+                 </button>
+               )}
                {seriesComplete && <div className="text-[var(--sage-green)] font-bold text-sm bg-[rgba(var(--sage-green-rgb),0.1)] px-3 py-1 rounded-full border border-[rgba(var(--sage-green-rgb),0.2)]">SERIES COMPLETE</div>}
           </div>
         </header>
@@ -593,7 +595,7 @@ export default function Simulator() {
           {/* Main Scorecard Area */}
           <div className="lg:col-span-3 flex flex-col gap-6 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--border)] pr-2">
              <div className="flex-none">
-                <ScoreCardLive detail={matchDetail} live={delayMs > 0 && !seriesComplete && (history.length < parseInt(numMatches) || !matchDetail?.is_wicket)} playerIdMap={playerIdMap} />
+                <ScoreCardLive detail={matchDetail} live={delayMs === 0 && !paused && !seriesComplete} playerIdMap={playerIdMap} />
              </div>
              
              {/* Match History Grid */}
