@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Search, TrendingUp, Zap, Award, Target, BarChart2, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Search, TrendingUp, Zap, Award, Target, BarChart2, ChevronRight, ChevronDown } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 import { teamFlag } from '@/lib/flags';
 
@@ -159,6 +159,16 @@ function LeaderboardCard({ cfg, type }: { cfg: typeof BATTING_BOARDS[0]; type: '
               );
             })}
           </div>
+        )}
+        {/* View More */}
+        {!loading && data.length > 0 && (
+          <Link
+            href={`/players/leaderboard/${type}/${cfg.key}${!cfg.isQuantitative ? `?min_innings=${minInnings}` : ''}`}
+            className="flex items-center justify-center gap-1.5 mt-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors hover:bg-[rgba(var(--sage-green-rgb),0.08)]"
+            style={{ color: 'var(--muted)', border: '1px dashed var(--border)' }}
+          >
+            <ChevronDown className="w-3 h-3" /> View More
+          </Link>
         )}
       </div>
     </div>
