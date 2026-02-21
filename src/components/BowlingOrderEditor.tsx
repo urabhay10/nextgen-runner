@@ -41,18 +41,18 @@ const BowlingOrderEditor = ({ teamName, players, eligibleBowlers, bowlingOrder, 
   const bowlersList = (eligibleBowlers && eligibleBowlers.length > 0) ? eligibleBowlers : players.filter(p => p.trim() !== "");
 
   return (
-    <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+    <div className="bg-[rgba(var(--surface-rgb),0.5)] p-6 rounded-2xl border border-[var(--border)]">
       <div className="flex justify-between items-center mb-6">
         <div className="flex flex-col">
-          <h3 className="text-lg font-bold text-slate-300">Bowling Order: <span className="text-emerald-400">{teamName}</span></h3>
-          <span className={`text-xs ${isComplete ? 'text-emerald-500' : 'text-amber-500'}`}>
+          <h3 className="text-lg font-bold text-[var(--muted)]">Bowling Order: <span className="text-[var(--sage-green)]">{teamName}</span></h3>
+          <span className={`text-xs ${isComplete ? 'text-[var(--sage-green)]' : 'text-[var(--sandy-brown)]'}`}>
             {assignedCount}/20 overs assigned
           </span>
         </div>
         <button 
           onClick={onDefault}
           disabled={loading}
-          className="text-xs flex items-center gap-2 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 transition disabled:opacity-50"
+          className="text-xs flex items-center gap-2 px-3 py-1.5 rounded bg-[var(--border)] hover:bg-[rgba(var(--border-rgb),0.8)] text-[var(--muted)] transition disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
           Reset to Default
@@ -60,7 +60,7 @@ const BowlingOrderEditor = ({ teamName, players, eligibleBowlers, bowlingOrder, 
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded text-sm flex items-center gap-2">
+        <div className="mb-4 p-3 bg-[rgba(var(--sandy-brown-rgb),0.1)] border border-[rgba(var(--sandy-brown-rgb),0.2)] text-[var(--sandy-brown)] rounded text-sm flex items-center gap-2">
           <AlertCircle className="w-4 h-4" /> {error}
         </div>
       )}
@@ -68,8 +68,8 @@ const BowlingOrderEditor = ({ teamName, players, eligibleBowlers, bowlingOrder, 
       {/* Bowler Stats Summary */}
       <div className="mb-6 flex flex-wrap gap-2">
         {Object.entries(stats).map(([player, overs]) => (
-          <div key={player} className={`text-xs px-2 py-1 rounded border ${overs > 4 ? 'bg-rose-500/20 border-rose-500 text-rose-300' : 'bg-slate-800 border-slate-700 text-slate-400'}`}>
-            {player}: <span className="font-bold text-white">{overs}</span>
+          <div key={player} className={`text-xs px-2 py-1 rounded border ${overs > 4 ? 'bg-[rgba(var(--sandy-brown-rgb),0.2)] border-[var(--sandy-brown)] text-[var(--sandy-brown)]' : 'bg-[var(--border)] border-[rgba(var(--border-rgb),0.8)] text-[var(--muted)]'}`}>
+            {player}: <span className="font-bold text-[var(--foreground)]">{overs}</span>
           </div>
         ))}
       </div>
@@ -77,14 +77,14 @@ const BowlingOrderEditor = ({ teamName, players, eligibleBowlers, bowlingOrder, 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
         {Array.from({ length: 20 }).map((_, i) => (
           <div key={i} className="flex flex-col gap-1">
-            <div className="flex justify-between text-[10px] font-bold text-slate-600 uppercase">
+            <div className="flex justify-between text-[10px] font-bold text-[var(--muted)] uppercase">
                <span>Over {i + 1}</span>
-               {bowlingOrder[i] && (stats[bowlingOrder[i]] > 4) && <span className="text-rose-500">Exceeds Limit</span>}
+               {bowlingOrder[i] && (stats[bowlingOrder[i]] > 4) && <span className="text-[var(--sandy-brown)]">Exceeds Limit</span>}
             </div>
             <select
               value={bowlingOrder[i] || ""}
               onChange={(e) => handleBowlerChange(i, e.target.value)}
-              className={`bg-slate-950 border rounded px-2 py-1.5 text-xs text-slate-300 outline-none w-full ${bowlingOrder[i] && stats[bowlingOrder[i]] > 4 ? 'border-rose-500 focus:border-rose-500' : 'border-slate-800 focus:border-emerald-500'}`}
+              className={`bg-[var(--background)] border rounded px-2 py-1.5 text-xs text-[var(--muted)] outline-none w-full ${bowlingOrder[i] && stats[bowlingOrder[i]] > 4 ? 'border-[var(--sandy-brown)] focus:border-[var(--sandy-brown)]' : 'border-[var(--border)] focus:border-[var(--sage-green)]'}`}
             >
               <option value="" disabled>Select Bowler</option>
               {bowlersList.map((p, idx) => (
@@ -97,7 +97,7 @@ const BowlingOrderEditor = ({ teamName, players, eligibleBowlers, bowlingOrder, 
         ))}
       </div>
       
-      <div className="mt-4 text-[10px] text-slate-500 text-center">
+      <div className="mt-4 text-[10px] text-[var(--muted)] text-center">
         * Standard T20 rules: max 4 overs per bowler. Total 20 overs.
       </div>
     </div>

@@ -7,7 +7,7 @@ const API_Base = process.env.NEXT_PUBLIC_API_URL || 'https://hewhocodes247-crick
 
 export async function fetchModels(): Promise<Model[]> {
   try {
-    const res = await fetch(`${API_Base}/models`);
+    const res = await fetch(`${API_Base}/models`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to fetch models');
     
     // The API returns { default: string, models: string[] }

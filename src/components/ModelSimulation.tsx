@@ -15,11 +15,8 @@ interface ModelSimulationProps {
 
 export default function ModelSimulation({ model, payload, start, playerIdMap }: ModelSimulationProps) {
   const [matchDetail, setMatchDetail] = useState<BallEvent | null>(null);
-  
-  // New state to partial aggregate data
   const [completedMatches, setCompletedMatches] = useState<any[]>([]);
-  const [aggregatedStats, setAggregatedStats] = useState<any>({});
-
+  const [liveSummary, setLiveSummary] = useState<any>(null);
   const [seriesComplete, setSeriesComplete] = useState<SeriesSummaryData | null>(null);
   const [status, setStatus] = useState<'idle' | 'running' | 'complete' | 'error'>('idle');
   const simulationIdRef = useRef(0);
@@ -36,18 +33,20 @@ export default function ModelSimulation({ model, payload, start, playerIdMap }: 
       setMatchDetail(null);
       setSeriesComplete(null);
       setCompletedMatches([]);
-      setAggregatedStats({});
+      setLiveSummary(null);
 
       try {
         const fullPayload = { ...payload, model: model.id };
-        const response = await fetch(getApiUrl('/simulate_series_stream'), {
+        const endpoint = fullPayload.team1_bowling_order ? '/simulate_custom_match' : '/simulate_series_stream';
+        const response = await fetch(getApiUrl(endpoint), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(fullPayload),
-          signal: controller.signal
+          cache: 'no-store'
         });
 
-        if (!response.body) throw new Error("No response body");
+        if (!response.ok) throw new Error('Simulation failed');
+        if (!response.body) throw new Error('No response body');
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -61,18 +60,26 @@ export default function ModelSimulation({ model, payload, start, playerIdMap }: 
               if (simulationIdRef.current === simId) {
                   setMatchDetail(data.detail);
               }
-            } else if (data.type === 'match_update') {
-               // Store match result when a match finishes (or updates)
+            } else if (data.type === 'match_update' || data.type === 'match_complete') {
                if (simulationIdRef.current === simId) {
-                  // We only want to store the FINAL state of the match
-                  // The backend sends match_update after every ball? No, checking backend...
-                  // Backend sends match_update at the END of the match loop in simulate_series_stream
-                  // "yield json.dumps(match_data) + '\n'" is inside the loop but at the end.
                   setCompletedMatches(prev => {
-                      // Check if we already have this match
                       const exists = prev.find(m => m.match_no === data.match_no);
-                      if (exists) return prev.map(m => m.match_no === data.match_no ? data : m);
-                      return [...prev, data];
+                      const updated = exists ? prev.map(m => m.match_no === data.match_no ? data : m) : [...prev, data];
+                      // Build live summary from updated matches
+                      let t1Wins = 0, t2Wins = 0, ties = 0;
+                      let t1Name = '', t2Name = '';
+                      updated.forEach(m => {
+                          const teams = Object.keys(m.scorecard || {});
+                          if (!t1Name && teams.length >= 2) { t1Name = teams[0]; t2Name = teams[1]; }
+                          if (m.winner === t1Name) t1Wins++;
+                          else if (m.winner === t2Name) t2Wins++;
+                          else if (m.winner === 'Tie') ties++;
+                      });
+                      const scoreline = t1Wins > t2Wins ? `${t1Name} leads ${t1Wins}-${t2Wins}` :
+                          t2Wins > t1Wins ? `${t2Name} leads ${t2Wins}-${t1Wins}` :
+                          `Level ${t1Wins}-${t2Wins}`;
+                      setLiveSummary({ summary: { scoreline, [t1Name]: t1Wins, [t2Name]: t2Wins, Tie: ties }, matches: updated });
+                      return updated;
                   });
                }
             } else if (data.type === 'series_complete') {
@@ -118,28 +125,34 @@ export default function ModelSimulation({ model, payload, start, playerIdMap }: 
   }, [start, model, payload]);
 
   return (
-    <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden flex flex-col h-full">
-      <div className="p-3 bg-slate-800/50 border-b border-slate-700 flex justify-between items-center">
+    <div className="rounded-xl border overflow-hidden flex flex-col h-full" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <div className="p-3 border-b flex justify-between items-center" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
         <h3 className="font-bold text-white text-sm">{model.name}</h3>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${status === 'running' ? 'bg-emerald-500/20 text-emerald-400 animate-pulse' : status === 'complete' ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-700 text-slate-400'}`}>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${status === 'running' ? 'animate-pulse' : ''}`}
+          style={{
+            background: status === 'running' ? 'rgba(var(--sage-green-rgb), 0.2)' : status === 'complete' ? 'rgba(var(--sandy-brown-rgb), 0.2)' : 'var(--surface)',
+            color: status === 'running' ? 'var(--sage-green)' : status === 'complete' ? 'var(--sandy-brown)' : 'var(--muted)'
+          }}
+        >
           {status.toUpperCase()}
         </span>
       </div>
       
-      <div className="p-4 flex-1 flex flex-col gap-4">
+      <div className="p-4 flex-1 flex flex-col gap-4 overflow-hidden">
         {matchDetail ? (
-           <div className="scale-90 origin-top-left w-[111%] -mb-4">
+           <div className="flex-none scale-90 origin-top-left w-[111%] -mb-4">
              <ScoreCardLive detail={matchDetail} live={status === 'running'} playerIdMap={playerIdMap} />
            </div>
         ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-600 text-xs font-mono">
+            <div className="flex-1 flex items-center justify-center text-xs font-mono" style={{ color: 'var(--muted)' }}>
                 {status === 'running' ? 'Starting...' : 'Waiting to start...'}
             </div>
         )}
         
-        {seriesComplete && (
-            <div className="mt-auto pt-4 border-t border-slate-800">
-                <SeriesSummary data={{...seriesComplete, matches: completedMatches}} />
+        {/* Live summary — shown during running AND after complete */}
+        {(liveSummary || seriesComplete) && (
+            <div className="flex-1 min-h-0 overflow-hidden mt-2">
+                <SeriesSummary data={seriesComplete ? {...seriesComplete, matches: completedMatches} : liveSummary} />
             </div>
         )}
       </div>

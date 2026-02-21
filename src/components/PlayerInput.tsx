@@ -33,9 +33,9 @@ const PlayerInput = ({ value, onChange, onSelectPlayer, onBulkPaste, placeholder
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (text.length < 1) { setSuggestions([]); setShow(false); return; }
     debounceRef.current = setTimeout(async () => {
-      setLoading(true);
       try {
-        const res = await fetch(getApiUrl(`/players/search?q=${encodeURIComponent(text)}`));
+        const res = await fetch(getApiUrl(`/players/search?q=${encodeURIComponent(text)}`), { cache: 'no-store' });
+        if (!res.ok) throw new Error('Search failed');
         const data: Player[] = await res.json();
         setSuggestions(data);
         setShow(data.length > 0);
@@ -48,7 +48,8 @@ const PlayerInput = ({ value, onChange, onSelectPlayer, onBulkPaste, placeholder
   const autoMatch = useCallback(async (name: string): Promise<string> => {
     if (!name.trim()) return '';
     try {
-      const res = await fetch(getApiUrl(`/players/search?q=${encodeURIComponent(name.trim())}`));
+      const res = await fetch(getApiUrl(`/players/search?q=${encodeURIComponent(name.trim())}`), { cache: 'no-store' });
+      if (!res.ok) return '';
       const data: Player[] = await res.json();
       return data.length > 0 ? data[0].name : '';
     } catch { return ''; }
@@ -106,16 +107,16 @@ const PlayerInput = ({ value, onChange, onSelectPlayer, onBulkPaste, placeholder
 
   return (
     <div className="relative w-full">
-      <div className={`flex items-center border transition-all duration-150 ${show ? 'border-cyan-500/60 bg-slate-800/80' : 'border-slate-700/50 bg-slate-900/50 hover:border-slate-600'} rounded-lg overflow-hidden`}>
+      <div className={`flex items-center border transition-all duration-150 ${show ? 'border-[rgba(var(--sage-green-rgb),0.6)] bg-[rgba(var(--surface-rgb),0.8)]' : 'border-[rgba(var(--border-rgb),0.5)] bg-[rgba(var(--background-rgb),0.5)] hover:border-[var(--border)]'} rounded-lg overflow-hidden`}>
         {num !== undefined && (
-          <span className="flex-shrink-0 w-7 text-center text-[10px] font-black text-slate-700 border-r border-slate-700/50 py-2.5 select-none">
+          <span className="flex-shrink-0 w-7 text-center text-[10px] font-black text-[var(--muted)] border-r border-[rgba(var(--border-rgb),0.5)] py-2.5 select-none">
             {num}
           </span>
         )}
         <input
           ref={inputRef}
           type="text"
-          className="flex-1 bg-transparent px-3 py-2.5 text-sm text-white placeholder-slate-600 outline-none font-mono"
+          className="flex-1 bg-transparent px-3 py-2.5 text-sm text-[var(--foreground)] placeholder-[var(--muted)] outline-none font-mono"
           placeholder={placeholder || 'Player name...'}
           value={value}
           onChange={handleInputChange}
@@ -128,36 +129,36 @@ const PlayerInput = ({ value, onChange, onSelectPlayer, onBulkPaste, placeholder
         />
         {loading && (
           <span className="flex-shrink-0 pr-3">
-            <span className="block w-2.5 h-2.5 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+            <span className="block w-2.5 h-2.5 border-2 border-[rgba(var(--sage-green-rgb),0.3)] border-t-[var(--sage-green)] rounded-full animate-spin" />
           </span>
         )}
       </div>
 
       {show && suggestions.length > 0 && (
         <div
-          className="absolute z-50 left-0 right-0 mt-1 rounded-lg overflow-hidden shadow-2xl shadow-black/70 border border-slate-700/70"
+          className="absolute z-50 left-0 right-0 mt-1 rounded-lg overflow-hidden shadow-2xl shadow-black/70 border border-[rgba(var(--border-rgb),0.7)]"
           onMouseEnter={() => { mouseInListRef.current = true; }}
           onMouseLeave={() => { mouseInListRef.current = false; }}
         >
-          <div className="h-px bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500" />
-          <ul className="bg-[#0f172a] max-h-52 overflow-y-auto">
+          <div className="h-px bg-gradient-to-r from-[var(--sage-green)] via-[var(--sandy-brown)] to-[var(--dry-sage)]" />
+          <ul className="max-h-52 overflow-y-auto" style={{ background: 'var(--surface)' }}>
             {suggestions.map((s, i) => (
               <li
                 key={String(s.id)}
-                className={`flex items-center px-3 py-2 cursor-pointer border-b border-slate-800/60 last:border-0 transition-colors ${i === selectedIndex ? 'bg-slate-800' : 'hover:bg-slate-800/50'}`}
+                className={`flex items-center px-3 py-2 cursor-pointer border-b border-[rgba(var(--border-rgb),0.6)] last:border-0 transition-colors ${i === selectedIndex ? 'bg-[var(--border)]' : 'hover:bg-[rgba(var(--border-rgb),0.5)]'}`}
                 onMouseDown={(e) => { e.preventDefault(); handleSelect(s); }}
                 onMouseEnter={() => setSelectedIndex(i)}
               >
                 {/* Name + match count inline */}
-                <span className="flex-1 text-sm text-white font-mono truncate">
+                <span className="flex-1 text-sm text-[var(--foreground)] font-mono truncate">
                   {s.name}
                   {s.matches != null && (
-                    <span className="text-slate-500 text-[11px] ml-2">{s.matches}</span>
+                    <span className="text-[var(--muted)] text-[11px] ml-2">{s.matches}</span>
                   )}
                 </span>
                 {/* Bowl tag only if can bowl */}
                 {canBowl(s) && (
-                  <span className="mx-2 flex-shrink-0 text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
+                  <span className="mx-2 flex-shrink-0 text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded bg-[rgba(var(--sandy-brown-rgb),0.1)] text-[var(--sandy-brown)] border border-[rgba(var(--sandy-brown-rgb),0.2)] uppercase">
                     Bowl
                   </span>
                 )}
@@ -168,7 +169,7 @@ const PlayerInput = ({ value, onChange, onSelectPlayer, onBulkPaste, placeholder
                   rel="noopener noreferrer"
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
-                  className="flex-shrink-0 p-1 rounded text-slate-600 hover:text-cyan-400 transition-colors"
+                  className="flex-shrink-0 p-1 rounded text-[var(--muted)] hover:text-[var(--sage-green)] transition-colors"
                   title="View stats"
                 >
                   <ExternalLink className="w-3 h-3" />

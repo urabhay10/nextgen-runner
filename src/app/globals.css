@@ -1,17 +1,51 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0f172a;
-  --foreground: #e2e8f0;
+  /* Cricket Palette */
+  --palm-leaf:    #8B9474;
+  --sage-green:   #6CAE75;
+  --muted-olive:  #8BBD8B;
+  --dry-sage:     #C1CC99;
+  --sandy-brown:  #F5A65B;
+
+  /* RGB values for opacity */
+  --palm-leaf-rgb:    139, 148, 116;
+  --sage-green-rgb:   108, 174, 117;
+  --muted-olive-rgb:  139, 189, 139;
+  --dry-sage-rgb:     193, 204, 153;
+  --sandy-brown-rgb:  245, 166, 91;
+
+  --background: #12140E;
+  --background-rgb: 18, 20, 14;
+  --surface:    #1A1D14;
+  --surface-rgb: 26, 29, 20;
+  --surface-2:  #22261A;
+  --surface-2-rgb: 34, 38, 26;
+  --border:     #2E3222;
+  --border-rgb: 46, 50, 34;
+  --foreground: #E8EDD8;
+  --foreground-rgb: 232, 237, 216;
+  --muted:      #8B9474;
+  --muted-rgb:  139, 148, 116;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  
+  --color-palm-leaf: var(--palm-leaf);
+  --color-sage-green: var(--sage-green);
+  --color-muted-olive: var(--muted-olive);
+  --color-dry-sage: var(--dry-sage);
+  --color-sandy-brown: var(--sandy-brown);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
-
 
 body {
   background: var(--background);
@@ -19,68 +53,91 @@ body {
   font-family: 'Inter', sans-serif;
 }
 
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
+/* Scrollbar */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+/* Suggestion highlight */
 .suggestion-active {
-    background-color: #334155;
-    border-left: 4px solid #10b981;
+  background-color: #22261A;
+  border-left: 3px solid var(--sage-green);
 }
 
+/* Ball pop */
 .ball-pop {
-    animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
-
 @keyframes pop {
-    0% {
-        transform: scale(0.8);
-        opacity: 0;
-    }
-
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
+  0%   { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1);   opacity: 1; }
 }
 
-/* Fixed Layout Table Styles */
-.score-table {
-    table-layout: fixed;
-    width: 100%;
-}
-
-/* Align headers and cells strictly */
+/* Score table */
+.score-table { table-layout: fixed; width: 100%; }
 .score-table th {
-    @apply text-[10px] uppercase tracking-wider text-slate-500 font-semibold py-3 px-2 border-b border-slate-700/50 bg-slate-900/50;
+  @apply text-[10px] uppercase tracking-wider font-semibold py-3 px-2 border-b;
+  color: var(--palm-leaf);
+  border-color: var(--border);
+  background: var(--surface);
 }
-
 .score-table td {
-    @apply py-2.5 px-2 text-sm border-b border-slate-800/50;
+  @apply py-2.5 px-2 text-sm border-b;
+  border-color: var(--border);
+}
+.score-table tr:last-child td { border-bottom: none; }
+.score-table tr:hover { background: var(--surface-2); }
+
+/* Alignment utils */
+.text-r { text-align: right; }
+.text-l { text-align: left; }
+.text-c { text-align: center; }
+
+/* Predictor bar */
+.prob-bar { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* Carousel */
+.carousel-track {
+  display: flex;
+  gap: 1.5rem;
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
-/* Alignment Utilities */
-.text-r {
-    text-align: right;
+/* Cricket card hover glow */
+.cricket-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+.cricket-card:hover {
+  border-color: var(--sage-green);
+  box-shadow: 0 0 24px rgba(var(--sage-green-rgb), 0.12);
+  transform: translateY(-2px);
 }
 
-.text-l {
-    text-align: left;
+/* Gradient text helpers */
+.text-cricket-gradient {
+  background: linear-gradient(135deg, var(--sage-green), var(--dry-sage));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.text-sandy-gradient {
+  background: linear-gradient(135deg, var(--sandy-brown), var(--dry-sage));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.text-c {
-    text-align: center;
+/* Hide number input spinners globally */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
-
-.score-table tr:last-child td {
-    border-bottom: none;
-}
-
-.score-table tr:hover {
-    background-color: rgba(30, 41, 59, 0.5);
-}
-
-/* Predictor Bar Animation */
-.prob-bar {
-    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

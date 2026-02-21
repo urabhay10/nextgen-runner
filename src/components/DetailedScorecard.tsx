@@ -14,21 +14,21 @@ const DetailedScorecard = ({ teamName, data, playerIdMap }: DetailedScorecardPro
 
   return (
     <div className="mb-8 last:mb-0">
-      <div className="bg-slate-800/80 px-4 py-3 border-b border-slate-700 flex justify-between items-center rounded-t-xl">
+      <div className="bg-[rgba(var(--surface-2-rgb),0.8)] px-4 py-3 border-b border-[var(--border)] flex justify-between items-center rounded-t-xl">
         <div className="flex items-center gap-3">
-          <span className="w-2 h-6 bg-emerald-500 rounded-sm"></span>
-          <span className="font-black text-xl text-white tracking-tight">{teamName}</span>
+          <span className="w-2 h-6 bg-[var(--sage-green)] rounded-sm"></span>
+          <span className="font-black text-xl text-[var(--foreground)] tracking-tight">{teamName}</span>
         </div>
-        <span className="font-mono font-bold text-2xl text-emerald-400">{data.score}</span>
+        <span className="font-mono font-bold text-2xl text-[var(--sage-green)]">{data.score}</span>
       </div>
 
-      <div className="bg-slate-900 border border-t-0 border-slate-800 rounded-b-xl overflow-hidden p-4">
+      <div className="bg-[var(--surface)] border border-t-0 border-[var(--border)] rounded-b-xl overflow-hidden p-4">
         {/* Batting Table */}
         <div className="mb-8">
-          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-2">Batting</h4>
+          <h4 className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest mb-2 px-2">Batting</h4>
           <div className="overflow-x-auto">
             <table className="score-table">
-              <thead className="bg-slate-900 border-b border-slate-700">
+              <thead className="bg-[var(--surface)] border-b border-[var(--border)]">
                 <tr>
                   <th className="text-l w-[40%]">Batter</th>
                   <th className="text-r w-[10%]">R</th>
@@ -47,24 +47,24 @@ const DetailedScorecard = ({ teamName, data, playerIdMap }: DetailedScorecardPro
                   const didBat = b.balls > 0 || b.out;
 
                   return (
-                    <tr key={i} className={!b.out && b.balls > 0 ? "bg-emerald-900/10" : ""}>
+                    <tr key={i} className={!b.out && b.balls > 0 ? "bg-[rgba(var(--sage-green-rgb),0.1)]" : ""}>
                       <td className="text-l">
                         <div className="flex flex-col">
                           <PlayerLink name={b.name} id={playerIdMap?.[b.name]}>
-                            <span className={`cursor-default ${b.out ? 'text-slate-400' : (didBat ? 'text-emerald-400 font-bold' : 'text-slate-500')}`}>
+                            <span className={`cursor-default ${b.out ? 'text-[var(--muted)]' : (didBat ? 'text-[var(--sage-green)] font-bold' : 'text-[var(--muted)]')}`}>
                               {b.name} {!b.out && didBat ? '*' : ''}
                             </span>
                           </PlayerLink>
-                          <span className="text-[10px] text-slate-500 font-normal lowercase">
+                          <span className="text-[10px] text-[var(--muted)] font-normal lowercase">
                              {b.out ? (b.out_by ? `out by ${b.out_by}` : 'out') : (didBat ? 'not out' : '')}
                           </span>
                         </div>
                       </td>
-                      <td className="text-r font-bold text-white">{b.runs}</td>
-                      <td className="text-r text-slate-400">{b.balls}</td>
-                      <td className="text-c text-slate-500">{fours}</td>
-                      <td className="text-c text-slate-500">{sixes}</td>
-                      <td className="text-r text-slate-400 font-mono text-xs">{sr}</td>
+                      <td className="text-r font-bold text-[var(--foreground)]">{b.runs}</td>
+                      <td className="text-r text-[var(--muted)]">{b.balls}</td>
+                      <td className="text-c text-[var(--muted)]">{fours}</td>
+                      <td className="text-c text-[var(--muted)]">{sixes}</td>
+                      <td className="text-r text-[var(--muted)] font-mono text-xs">{sr}</td>
                     </tr>
                   );
                 })}
@@ -76,10 +76,10 @@ const DetailedScorecard = ({ teamName, data, playerIdMap }: DetailedScorecardPro
         {/* Bowling Table */}
         {data.bowling && data.bowling.length > 0 && (
           <div>
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-2">Bowling</h4>
+            <h4 className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest mb-2 px-2">Bowling</h4>
             <div className="overflow-x-auto">
               <table className="score-table">
-                <thead className="bg-slate-900 border-b border-slate-700">
+                <thead className="bg-[var(--surface)] border-b border-[var(--border)]">
                   <tr>
                     <th className="text-l w-[40%]">Bowler</th>
                     <th className="text-c w-[10%]">O</th>
@@ -106,16 +106,16 @@ const DetailedScorecard = ({ teamName, data, playerIdMap }: DetailedScorecardPro
 
                     return (
                       <tr key={i}>
-                        <td className="text-l text-rose-300 font-medium">
+                        <td className="text-l text-[var(--sandy-brown)] font-medium">
                           <PlayerLink name={b.name} id={playerIdMap?.[b.name]}>
                             <span className="cursor-default">{b.name}</span>
                           </PlayerLink>
                         </td>
-                        <td className="text-c text-slate-300">{oversDisplay}</td>
-                        <td className="text-c text-slate-500">{maidens}</td>
-                        <td className="text-c text-slate-300">{runs}</td>
-                        <td className="text-c font-bold text-white">{wickets}</td>
-                        <td className="text-r text-slate-400 font-mono text-xs">{econ}</td>
+                        <td className="text-c text-[var(--foreground)]">{oversDisplay}</td>
+                        <td className="text-c text-[var(--muted)]">{maidens}</td>
+                        <td className="text-c text-[var(--foreground)]">{runs}</td>
+                        <td className="text-c font-bold text-[var(--foreground)]">{wickets}</td>
+                        <td className="text-r text-[var(--muted)] font-mono text-xs">{econ}</td>
                       </tr>
                     );
                   })}

@@ -35,8 +35,8 @@ export default function PlayerLink({ name, id, children, className }: PlayerLink
           onClick={e => e.stopPropagation()}
           className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 whitespace-nowrap
                      flex items-center gap-1.5 px-2.5 py-1 rounded-lg
-                     bg-slate-800 border border-slate-600 shadow-xl shadow-black/60
-                     text-[11px] font-bold text-cyan-400 hover:text-cyan-300 hover:border-cyan-500/50 transition-colors"
+                     bg-[var(--background)] border border-[var(--border)] shadow-xl shadow-black/60
+                     text-[11px] font-bold text-[var(--sage-green)] hover:text-[var(--sandy-brown)] hover:border-[rgba(var(--sage-green-rgb),0.5)] transition-colors"
         >
           Stats <ExternalLink className="w-2.5 h-2.5" />
         </a>

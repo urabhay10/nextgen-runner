@@ -124,7 +124,7 @@ const SeriesSummary = ({ data, isExpanded = false, onToggleExpand }: SeriesSumma
       });
       return Object.entries(players)
           .sort(([,a], [,b]) => b.runs - a.runs)
-          .slice(0, 5)
+          .slice(0, isExpanded ? 10 : 5)
           .map(([name, stats]) => {
               const avg = stats.dismissals > 0 ? (stats.runs / stats.dismissals).toFixed(1) : stats.runs.toString();
               const sr = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : "0.0";
@@ -149,8 +149,8 @@ const SeriesSummary = ({ data, isExpanded = false, onToggleExpand }: SeriesSumma
           });
       });
       return Object.entries(players)
-          .sort(([,a], [,b]) => b.wickets - a.wickets || a.runs - b.runs) // Sort by wickets desc, then runs conceded asc
-          .slice(0, 5)
+          .sort(([,a], [,b]) => b.wickets - a.wickets || a.runs - b.runs)
+          .slice(0, isExpanded ? 10 : 5)
           .map(([name, stats]) => {
               const overs = (stats.balls / 6).toFixed(1);
               const eco = stats.balls > 0 ? ((stats.runs / stats.balls) * 6).toFixed(1) : "0.0";
@@ -161,36 +161,36 @@ const SeriesSummary = ({ data, isExpanded = false, onToggleExpand }: SeriesSumma
   })() : [];
 
   return (
-    <div className={`bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 p-4 rounded-xl shadow-xl flex flex-col gap-3 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 ${isExpanded ? 'fixed inset-4 z-50 !max-h-full !h-auto' : 'max-h-[500px]'}`}>
-      <div className="text-center pb-3 border-b border-slate-800 relative">
+    <div className={`bg-gradient-to-br from-[var(--background)] to-[var(--background-rgb)] border border-[var(--border)] p-4 rounded-xl shadow-xl flex flex-col gap-3 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--border)] ${isExpanded ? 'fixed inset-4 z-50 !max-h-full !h-auto' : 'max-h-[500px]'}`}>
+      <div className="text-center pb-3 border-b border-[var(--border)] relative">
         {onToggleExpand && (
             <button 
                 onClick={onToggleExpand}
-                className="absolute right-0 top-0 p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition"
+                className="absolute right-0 top-0 p-1.5 hover:bg-[var(--border)] rounded-lg text-[var(--muted)] hover:text-[var(--foreground)] transition"
                 title={isExpanded ? "Collapse" : "Expand Fullscreen"}
             >
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
         )}
-        <h3 className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-1">Series Result</h3>
-        <div className={`font-black text-white drop-shadow-md leading-none mb-1 ${isExpanded ? 'text-4xl' : 'text-lg'}`}>
+        <h3 className="text-[10px] font-black text-[var(--sage-green)] uppercase tracking-[0.2em] mb-1">Series Result</h3>
+        <div className={`font-black text-[var(--foreground)] drop-shadow-md leading-none mb-1 ${isExpanded ? 'text-4xl' : 'text-lg'}`}>
           {summaryText}
         </div>
-        {subText && <div className={`text-slate-500 font-mono ${isExpanded ? 'text-sm' : 'text-[10px]'}`}>{subText}</div>}
+        {subText && <div className={`text-[var(--muted)] font-mono ${isExpanded ? 'text-sm' : 'text-[10px]'}`}>{subText}</div>}
       </div>
 
       {matches.length > 0 && (
           <div className={isExpanded ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4" : "space-y-4"}>
-              <div className={`bg-slate-800/50 p-2 rounded text-center ${isExpanded ? 'col-span-full' : ''}`}>
-                  <div className="text-[10px] text-slate-400 uppercase">Avg Score per Innings</div>
-                  <div className={`font-bold text-white ${isExpanded ? 'text-2xl' : 'text-sm'}`}>{avgScore}</div>
+              <div className={`bg-[rgba(var(--border-rgb),0.5)] p-2 rounded text-center ${isExpanded ? 'col-span-full' : ''}`}>
+                  <div className="text-[10px] text-[var(--muted)] uppercase">Avg Score per Innings</div>
+                  <div className={`font-bold text-[var(--foreground)] ${isExpanded ? 'text-2xl' : 'text-sm'}`}>{avgScore}</div>
               </div>
 
               <div className={isExpanded ? "col-span-1 space-y-4" : "grid grid-cols-1 md:grid-cols-2 gap-2"}>
                  {/* Top Batters */}
-                 <div className={`bg-slate-800/30 p-2 rounded ${isExpanded ? 'h-full' : ''}`}>
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 border-b border-slate-700 pb-1">Top Batters</h4>
-                    <div className="grid grid-cols-5 text-[9px] text-slate-500 uppercase mb-1 text-right">
+                 <div className={`bg-[rgba(var(--border-rgb),0.3)] p-2 rounded ${isExpanded ? 'h-full' : ''}`}>
+                    <h4 className="text-[10px] font-bold text-[var(--muted)] uppercase mb-2 border-b border-[var(--border)] pb-1">Top Batters</h4>
+                    <div className="grid grid-cols-5 text-[9px] text-[var(--muted)] uppercase mb-1 text-right">
                         <div className="col-span-1 text-left">Name</div>
                         <div>Inn</div>
                         <div>Runs</div>
@@ -200,20 +200,20 @@ const SeriesSummary = ({ data, isExpanded = false, onToggleExpand }: SeriesSumma
                     <ul className="space-y-1">
                        {topBatters.map((p, i) => (
                            <li key={i} className="grid grid-cols-5 text-[10px] text-right">
-                               <span className="col-span-1 text-slate-300 truncate text-left" title={p.name}>{p.name}</span>
-                               <span className="text-slate-400">{p.innings}</span>
-                               <span className="font-mono text-emerald-400">{p.runs}</span>
-                               <span className="text-slate-400">{p.avg}</span>
-                               <span className="text-slate-400">{p.sr}</span>
+                               <span className="col-span-1 text-[var(--muted)] truncate text-left" title={p.name}>{p.name}</span>
+                               <span className="text-[var(--muted)]">{p.innings}</span>
+                               <span className="font-mono text-[var(--sage-green)]">{p.runs}</span>
+                               <span className="text-[var(--muted)]">{p.avg}</span>
+                               <span className="text-[var(--muted)]">{p.sr}</span>
                            </li>
                        ))}
                     </ul>
                  </div>
 
                  {/* Top Bowlers */}
-                 <div className={`bg-slate-800/30 p-2 rounded ${isExpanded ? 'h-full' : ''}`}>
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 border-b border-slate-700 pb-1">Top Bowlers</h4>
-                    <div className="grid grid-cols-5 text-[9px] text-slate-500 uppercase mb-1 text-right">
+                 <div className={`bg-[rgba(var(--border-rgb),0.3)] p-2 rounded ${isExpanded ? 'h-full' : ''}`}>
+                    <h4 className="text-[10px] font-bold text-[var(--muted)] uppercase mb-2 border-b border-[var(--border)] pb-1">Top Bowlers</h4>
+                    <div className="grid grid-cols-5 text-[9px] text-[var(--muted)] uppercase mb-1 text-right">
                         <div className="col-span-1 text-left">Name</div>
                         <div>Wkts</div>
                         <div>Eco</div>
@@ -223,11 +223,11 @@ const SeriesSummary = ({ data, isExpanded = false, onToggleExpand }: SeriesSumma
                      <ul className="space-y-1">
                        {topBowlers.map((p, i) => (
                            <li key={i} className="grid grid-cols-5 text-[10px] text-right">
-                               <span className="col-span-1 text-slate-300 truncate text-left" title={p.name}>{p.name}</span>
-                               <span className="font-mono text-purple-400">{p.wickets}</span>
-                               <span className="text-slate-400">{p.eco}</span>
-                               <span className="text-slate-400">{p.avg}</span>
-                               <span className="text-slate-400">{p.finalSR}</span>
+                               <span className="col-span-1 text-[var(--muted)] truncate text-left" title={p.name}>{p.name}</span>
+                               <span className="font-mono text-[var(--sandy-brown)]">{p.wickets}</span>
+                               <span className="text-[var(--muted)]">{p.eco}</span>
+                               <span className="text-[var(--muted)]">{p.avg}</span>
+                               <span className="text-[var(--muted)]">{p.finalSR}</span>
                            </li>
                        ))}
                     </ul>
@@ -235,7 +235,7 @@ const SeriesSummary = ({ data, isExpanded = false, onToggleExpand }: SeriesSumma
               </div>
 
               <div className={`space-y-1 ${isExpanded ? 'col-span-2' : ''}`}>
-                  <h4 className="text-[10px] font-bold text-slate-500 uppercase">Match Log</h4>
+                  <h4 className="text-[10px] font-bold text-[var(--muted)] uppercase">Match Log</h4>
                   <div className={isExpanded ? "grid grid-cols-2 gap-2" : ""}>
                   {matches.map((m, i) => {
                       const teams = Object.keys(m.scorecard);
@@ -245,17 +245,17 @@ const SeriesSummary = ({ data, isExpanded = false, onToggleExpand }: SeriesSumma
                       const s2 = m.scorecard[t2].score;
                       
                       return (
-                      <div key={i} className="flex flex-col gap-0.5 text-[10px] bg-slate-800/30 p-2 rounded hover:bg-slate-800/60 transition">
-                          <div className="flex justify-between border-b border-slate-700/50 pb-0.5 mb-0.5">
-                             <span className="text-slate-500 font-bold">Match {m.match_no}</span>
-                             <span className="text-emerald-400 font-bold">{m.winner === 'Tie' ? 'TIE' : m.winner}</span>
+                      <div key={i} className="flex flex-col gap-0.5 text-[10px] bg-[rgba(var(--border-rgb),0.3)] p-2 rounded hover:bg-[rgba(var(--border-rgb),0.6)] transition">
+                          <div className="flex justify-between border-b border-[rgba(var(--border-rgb),0.5)] pb-0.5 mb-0.5">
+                             <span className="text-[var(--muted)] font-bold">Match {m.match_no}</span>
+                             <span className="text-[var(--sage-green)] font-bold">{m.winner === 'Tie' ? 'TIE' : m.winner}</span>
                           </div>
-                          <div className="flex justify-between items-center text-slate-300">
-                              <span>{t1} <span className="text-slate-400 ml-1">{s1}</span></span>
-                              <span className="text-slate-600 text-[8px]">vs</span>
-                              <span>{t2} <span className="text-slate-400 ml-1">{s2}</span></span>
+                          <div className="flex justify-between items-center text-[var(--muted)]">
+                              <span>{t1} <span className="text-[var(--muted)] ml-1">{s1}</span></span>
+                              <span className="text-[var(--muted)] text-[8px] opacity-50">vs</span>
+                              <span>{t2} <span className="text-[var(--muted)] ml-1">{s2}</span></span>
                           </div>
-                          <div className="text-[9px] text-slate-500 italic mt-0.5 text-right">{m.margin === 'Tie' ? 'Scores Level' : `Won by ${m.margin}`}</div>
+                          <div className="text-[9px] text-[var(--muted)] italic mt-0.5 text-right">{m.margin === 'Tie' ? 'Scores Level' : `Won by ${m.margin}`}</div>
                       </div>
                   )})}
                   </div>
