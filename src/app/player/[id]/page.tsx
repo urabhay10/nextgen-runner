@@ -227,17 +227,6 @@ export default function PlayerPage() {
           </section>
         )}
 
-        {/* Back link */}
-        <div className="flex justify-center">
-          <Link
-            href="/players"
-            className="flex items-center gap-2 px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest transition-all hover:scale-105"
-            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--muted)' }}
-          >
-            <ArrowLeft className="w-3.5 h-3.5" /> All Players
-          </Link>
-        </div>
-
       </div>
     </div>
   );
