@@ -124,13 +124,9 @@ function LeaderboardCard({ cfg, type }: { cfg: typeof BATTING_BOARDS[0]; type: '
               const val = entry[cfg.key];
               const isTop = i === 0;
               const pct = data[0] ? Math.round(((val ?? 0) / (data[0][cfg.key] ?? 1)) * 100) : 0;
+              const href = entry.id != null ? `/player/${entry.id}` : '#';
               return (
-                <div key={i} className="group relative rounded-lg px-3 py-2 flex items-center gap-3 transition-colors" style={{ background: isTop ? `rgba(${cfg.colorRgb}, 0.06)` : undefined }}>
-                  {/* Progress fill */}
-                  <div
-                    className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ background: `rgba(${cfg.colorRgb}, 0.03)` }}
-                  />
+                <Link key={i} href={href} className="group relative rounded-lg px-3 py-2 flex items-center gap-3 transition-colors hover:bg-[rgba(var(--sage-green-rgb),0.06)]" style={{ background: isTop ? `rgba(${cfg.colorRgb}, 0.06)` : undefined }}>
                   {/* Rank */}
                   <span
                     className="flex-none w-5 text-center text-[10px] font-black font-mono"
@@ -139,21 +135,21 @@ function LeaderboardCard({ cfg, type }: { cfg: typeof BATTING_BOARDS[0]; type: '
                     {isTop ? '①' : entry.rank}
                   </span>
                   {/* Bar + name */}
-                  <Link href={entry.id != null ? `/player/${entry.id}` : '#'} className="flex-1 min-w-0 hover:opacity-80 transition-opacity">
-                    <div className="text-xs font-bold truncate">{entry.name}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold truncate group-hover:text-[var(--sage-green)] transition-colors">{entry.name}</div>
                     <div className="mt-1 h-0.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
                       <div
                         className="h-full rounded-full transition-all"
                         style={{ width: `${pct}%`, background: cfg.color }}
                       />
                     </div>
-                  </Link>
+                  </div>
                   {/* Value */}
                   <span className="flex-none text-sm font-black font-mono tabular-nums" style={{ color: cfg.color }}>
                     {typeof val === 'number' ? (cfg.key === 'average' || cfg.key === 'strike_rate' || cfg.key === 'economy' ? val.toFixed(1) : val) : val ?? '—'}
                     <span className="text-[9px] ml-0.5 font-normal" style={{ color: 'var(--muted)' }}>{cfg.unit}</span>
                   </span>
-                </div>
+                </Link>
               );
             })}
           </div>
