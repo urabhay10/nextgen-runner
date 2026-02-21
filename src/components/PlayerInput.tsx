@@ -4,6 +4,7 @@ import { useState, useRef, KeyboardEvent, useCallback } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { Player } from '@/types';
 import { getApiUrl } from '@/lib/api';
+import { teamFlag } from '@/lib/flags';
 
 interface PlayerInputProps {
   value: string;
@@ -145,20 +146,26 @@ const PlayerInput = ({ value, onChange, onSelectPlayer, onBulkPaste, placeholder
             {suggestions.map((s, i) => (
               <li
                 key={String(s.id)}
-                className={`flex items-center px-3 py-2 cursor-pointer border-b border-[rgba(var(--border-rgb),0.6)] last:border-0 transition-colors ${i === selectedIndex ? 'bg-[var(--border)]' : 'hover:bg-[rgba(var(--border-rgb),0.5)]'}`}
+                className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-[rgba(var(--border-rgb),0.6)] last:border-0 transition-colors ${i === selectedIndex ? 'bg-[var(--border)]' : 'hover:bg-[rgba(var(--border-rgb),0.5)]'}`}
                 onMouseDown={(e) => { e.preventDefault(); handleSelect(s); }}
                 onMouseEnter={() => setSelectedIndex(i)}
               >
-                {/* Name + match count inline */}
-                <span className="flex-1 text-sm text-[var(--foreground)] font-mono truncate">
+                {/* Flag */}
+                {teamFlag(s.teams) && (
+                  <span className="flex-shrink-0 text-base leading-none" title={s.teams?.[0]}>
+                    {teamFlag(s.teams)}
+                  </span>
+                )}
+                {/* Name + match count */}
+                <span className="flex-1 min-w-0 text-sm text-[var(--foreground)] font-mono truncate">
                   {s.name}
                   {s.matches != null && (
-                    <span className="text-[var(--muted)] text-[11px] ml-2">{s.matches}</span>
+                    <span className="text-[var(--muted)] text-[10px] ml-1.5">{s.matches}m</span>
                   )}
                 </span>
                 {/* Bowl tag only if can bowl */}
                 {canBowl(s) && (
-                  <span className="mx-2 flex-shrink-0 text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded bg-[rgba(var(--sandy-brown-rgb),0.1)] text-[var(--sandy-brown)] border border-[rgba(var(--sandy-brown-rgb),0.2)] uppercase">
+                  <span className="flex-shrink-0 text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded bg-[rgba(var(--sandy-brown-rgb),0.1)] text-[var(--sandy-brown)] border border-[rgba(var(--sandy-brown-rgb),0.2)] uppercase">
                     Bowl
                   </span>
                 )}

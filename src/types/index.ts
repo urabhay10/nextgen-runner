@@ -4,6 +4,7 @@ export interface Player {
   // New backend fields
   can_bowl?: boolean;
   matches?: number;
+  teams?: string[];
   // Legacy backend field
   role?: string;
 }

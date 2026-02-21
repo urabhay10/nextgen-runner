@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Search, TrendingUp, Zap, Award, Target, BarChart2, ChevronRight } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
+import { teamFlag } from '@/lib/flags';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -12,6 +13,7 @@ interface LeaderboardEntry {
   name: string;
   id?: number;
   matches?: number;
+  teams?: string[];
   [key: string]: any;
 }
 
@@ -26,6 +28,8 @@ interface SearchResult {
   runs: number | null;
   wickets: number | null;
   id?: number;
+  teams?: string[];
+  can_bowl?: boolean;
 }
 
 // ── Config for the 5 leaderboards ─────────────────────────────────────────
@@ -35,15 +39,13 @@ const BATTING_BOARDS = [
   { key: 'average',      label: 'Best Average',      icon: Award,      color: 'var(--sandy-brown)', colorRgb: 'var(--sandy-brown-rgb)', unit: 'avg',  isQuantitative: false, defaultMinInnings: 25 },
   { key: 'strike_rate',  label: 'Best Strike Rate',  icon: Zap,        color: 'var(--dry-sage)',    colorRgb: 'var(--dry-sage-rgb)',    unit: 'SR',   isQuantitative: false, defaultMinInnings: 50 },
   { key: '50s',          label: 'Most Fifties',      icon: BarChart2,  color: 'var(--palm-leaf)',   colorRgb: 'var(--palm-leaf-rgb)',   unit: '50s',  isQuantitative: true },
-  { key: '100s',         label: 'Most Hundreds',     icon: Target,     color: 'var(--muted-olive)', colorRgb: 'var(--muted-olive-rgb)', unit: '100s', isQuantitative: true },
 ];
 
 const BOWLING_BOARDS = [
   { key: 'wickets',       label: 'Most Wickets',       icon: Zap,        color: 'var(--sandy-brown)', colorRgb: 'var(--sandy-brown-rgb)', unit: 'wkts', isQuantitative: true },
-  { key: 'economy',       label: 'Best Economy',        icon: Target,     color: 'var(--sage-green)',  colorRgb: 'var(--sage-green-rgb)',  unit: 'econ', isQuantitative: false, defaultMinInnings: 25 },
+  { key: 'average',       label: 'Best Average',        icon: Target,     color: 'var(--sage-green)',  colorRgb: 'var(--sage-green-rgb)',  unit: 'avg',  isQuantitative: false, defaultMinInnings: 25 },
   { key: 'strike_rate',   label: 'Best Strike Rate',    icon: Zap,        color: 'var(--dry-sage)',    colorRgb: 'var(--dry-sage-rgb)',    unit: 'SR',   isQuantitative: false, defaultMinInnings: 50 },
   { key: '3w',            label: 'Most 3-Wicket Hauls', icon: Award,      color: 'var(--palm-leaf)',   colorRgb: 'var(--palm-leaf-rgb)',   unit: '3w',   isQuantitative: true },
-  { key: '5w',            label: 'Most 5-Wicket Hauls', icon: Target,     color: 'var(--muted-olive)', colorRgb: 'var(--muted-olive-rgb)', unit: '5w',   isQuantitative: true },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -134,6 +136,10 @@ function LeaderboardCard({ cfg, type }: { cfg: typeof BATTING_BOARDS[0]; type: '
                   >
                     {isTop ? '①' : entry.rank}
                   </span>
+                  {/* Flag */}
+                  <span className="flex-none text-base leading-none" title={(entry.teams?.find(t => t !== 'ICC World XI') ?? entry.teams?.[0]) ?? ''}>
+                    {teamFlag(entry.teams)}
+                  </span>
                   {/* Bar + name */}
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-bold truncate group-hover:text-[var(--sage-green)] transition-colors">{entry.name}</div>
@@ -180,6 +186,8 @@ function PlayerSearch() {
           id: p.id,
           name: p.name,
           matches: p.matches,
+          teams: p.teams ?? [],
+          can_bowl: p.can_bowl ?? false,
           runs: null,
           wickets: null
         })));
@@ -217,17 +225,27 @@ function PlayerSearch() {
             <Link
               key={i}
               href={p.id != null ? `/player/${p.id}` : '#'}
-              className="group flex items-center justify-between px-4 py-3 rounded-xl transition-all cricket-card"
+              className="group flex items-center gap-3 px-4 py-3 rounded-xl transition-all cricket-card"
             >
-              <div>
-                <div className="text-sm font-bold group-hover:text-[var(--sage-green)] transition-colors">{p.name}</div>
+              {/* Flag */}
+              <span className="flex-shrink-0 text-xl leading-none" title={(p.teams?.find(t => t !== 'ICC World XI') ?? p.teams?.[0]) ?? ''}>
+                {teamFlag(p.teams)}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-bold group-hover:text-[var(--sage-green)] transition-colors truncate">{p.name}</span>
+                  {p.can_bowl && (
+                    <span className="flex-shrink-0 text-[9px] font-black tracking-widest px-1.5 py-0.5 rounded bg-[rgba(var(--sandy-brown-rgb),0.1)] text-[var(--sandy-brown)] border border-[rgba(var(--sandy-brown-rgb),0.2)] uppercase">
+                      Bowl
+                    </span>
+                  )}
+                </div>
                 <div className="text-[10px] flex gap-2 mt-0.5" style={{ color: 'var(--muted)' }}>
                   <span>{p.matches} matches</span>
-                  {p.runs != null && <span>· {p.runs} runs</span>}
-                  {p.wickets != null && p.wickets > 0 && <span>· {p.wickets} wkts</span>}
+                  {p.teams && p.teams.length > 0 && <span>· {p.teams.find(t => t !== 'ICC World XI') ?? p.teams[0]}</span>}
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--sage-green)' }} />
+              <ChevronRight className="w-4 h-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--sage-green)' }} />
             </Link>
           ))}
         </div>
@@ -273,7 +291,7 @@ export default function PlayersPage() {
             <TrendingUp className="w-4 h-4" style={{ color: 'var(--sage-green)' }} />
             <h2 className="text-xs font-black uppercase tracking-widest" style={{ color: 'var(--sage-green)' }}>Batting Leaderboards</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {BATTING_BOARDS.map(cfg => (
               <LeaderboardCard key={cfg.key} cfg={cfg} type="batting" />
             ))}
@@ -286,7 +304,7 @@ export default function PlayersPage() {
             <Zap className="w-4 h-4" style={{ color: 'var(--sandy-brown)' }} />
             <h2 className="text-xs font-black uppercase tracking-widest" style={{ color: 'var(--sandy-brown)' }}>Bowling Leaderboards</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {BOWLING_BOARDS.map(cfg => (
               <LeaderboardCard key={cfg.key} cfg={cfg} type="bowling" />
             ))}

@@ -3,14 +3,20 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Zap, Activity, TrendingUp, Target, Award } from 'lucide-react';
+import { ArrowLeft, Zap, Activity, TrendingUp, Target, Award, MapPin } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
+import { FLAG } from '@/lib/flags';
+
+function teamFlag(team: string) {
+  return FLAG[team] ?? '🏏';
+}
 
 interface PlayerStatsData {
   id: number;
   name: string;
   can_bowl: boolean;
   matches: number;
+  teams: string[];
   batting: {
     innings: number;
     runs: number;
@@ -131,6 +137,17 @@ export default function PlayerPage() {
               <p className="text-[10px] uppercase font-black tracking-[0.35em] mb-2" style={{ color: 'var(--palm-leaf)' }}>Player · #{data.id}</p>
               <h1 className="text-4xl md:text-5xl font-black tracking-tight text-[var(--foreground)] mb-4">{data.name}</h1>
               <div className="flex flex-wrap gap-2">
+                {/* Teams / Country */}
+                {data.teams && data.teams.length > 0 && data.teams.map(team => (
+                  <span
+                    key={team}
+                    className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full"
+                    style={{ background: 'rgba(var(--sandy-brown-rgb), 0.08)', border: '1px solid rgba(var(--sandy-brown-rgb), 0.3)', color: 'var(--sandy-brown)' }}
+                  >
+                    <span className="text-sm leading-none">{teamFlag(team)}</span>
+                    {team}
+                  </span>
+                ))}
                 <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--muted)' }}>
                   {data.matches} Matches
                 </span>
