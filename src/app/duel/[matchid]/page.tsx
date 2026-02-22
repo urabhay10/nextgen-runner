@@ -274,11 +274,11 @@ export default function DuelMatchPage() {
   if (match.status === 'drafting') {
     return (
       <div style={{ background: 'var(--background)', minHeight: '100vh' }}>
-        <div className="px-4 pt-6 max-w-5xl mx-auto">
+        {/* <div className="px-4 pt-6 max-w-5xl mx-auto">
           <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-4 hover:opacity-70 transition-opacity" style={{ color: 'var(--muted)' }}>
             <ArrowLeft className="w-3.5 h-3.5" /> Home
           </Link>
-        </div>
+        </div> */}
         <DraftPicker match={match} myUserId={effectiveUserId} />
       </div>
     );

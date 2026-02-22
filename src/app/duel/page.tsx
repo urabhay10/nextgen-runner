@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Swords, Copy, Check, Loader2, Pencil, Shuffle, Users, BookOpen, Zap } from 'lucide-react';
+import { ArrowLeft, Swords, Copy, Check, Loader2, Pencil, Shuffle, Users, BookOpen, Zap } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
@@ -198,9 +198,12 @@ export default function DuelPage() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
       <div className="max-w-[1200px] mx-auto px-4 py-8 flex gap-8 items-start">
-
+        
         {/* ── LEFT — lobby panel ──────────────────────────────────────── */}
         <div className="w-full max-w-md flex-shrink-0 flex flex-col">
+<Link href="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-8 hover:opacity-70 transition-opacity" style={{ color: 'var(--muted)' }}>
+        <ArrowLeft className="w-3.5 h-3.5" /> Back
+      </Link>
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">

@@ -308,8 +308,7 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
       {/* ── Top bar ──────────────────────────────────────────────────── */}
       <div className="flex-none flex items-center gap-3 px-4 py-2.5 border-b z-10"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-
-        {/* Home link — far left */}
+{/* Home link — far left */}
         <Link href="/"
           className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex-shrink-0 mr-1"
           style={{ color: 'var(--muted)', border: '1px solid var(--border)' }}
@@ -317,7 +316,6 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
           <Home className="w-3 h-3" />
           Home
         </Link>
-
         {/* My team label */}
         <div className="w-44 flex-shrink-0">
           <div className="text-[9px] uppercase font-black tracking-widest" style={{ color: 'var(--sage-green)' }}>
@@ -385,7 +383,7 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
 
         {/* Opp team label */}
         <div className="w-44 flex-shrink-0 text-right">
-          <div className="text-[9px] uppercase font-black tracking-widest" style={{ color: 'var(--sandy-brown)' }}>
+          <div className="text-[8px] uppercase font-black tracking-widest" style={{ color: 'var(--sandy-brown)' }}>
             {oppName}
           </div>
           <div className="text-xs font-bold" style={{ color: 'var(--muted)' }}>
