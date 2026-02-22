@@ -82,3 +82,10 @@ export interface SeriesSummaryData {
     score: string;
   }[];
 }
+
+/** A player slot with a stable uid so duplicate names are always distinguishable. */
+export interface SlottedPlayer {
+  /** Stable slot identifier, e.g. "t1_0", "t1_1". Never changes even when the name changes. */
+  uid: string;
+  name: string;
+}

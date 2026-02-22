@@ -2,7 +2,14 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { Play, BrainCircuit, Settings2, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import duelIcon    from '@/images/duel_icon.png';
+import simIcon     from '@/images/sim_icon_3.png';
+import ballPred    from '@/images/ball_pred.png';
+import modelComp   from '@/images/model_comp.png';
+import playerStats from '@/images/player_stats.png';
 
 const CARD_W = 320;
 const GAP    = 24;
@@ -10,40 +17,48 @@ const STEP   = CARD_W + GAP; // 344px per slot
 
 const CARDS = [
 	{
-		href: '/simulate',
-		icon: Play,
+		href: '/duel',
+		img: duelIcon,
 		tag: '01',
+		title: '1v1 Duel',
+		subtitle: 'Draft a team, set your order, and battle a friend in a live T20.',
+		cta: 'Start a Duel',
+	},
+	{
+		href: '/simulate',
+		img: simIcon,
+		tag: '02',
 		title: 'Series Simulator',
 		subtitle: 'Ball-by-ball T20I simulation engine with live scorecards.',
 		cta: 'Launch Simulator',
 	},
 	{
 		href: '/predict',
-		icon: BrainCircuit,
-		tag: '02',
+		img: ballPred,
+		tag: '03',
 		title: 'AI Ball Predictor',
 		subtitle: 'Probability distribution for every ball outcome in any situation.',
 		cta: 'Open Predictor',
 	},
 	{
 		href: '/compare',
-		icon: Settings2,
-		tag: '03',
+		img: modelComp,
+		tag: '04',
 		title: 'Model Comparison',
 		subtitle: 'Parallel simulations across all AI models to compare strategies.',
 		cta: 'Compare Models',
 	},
 	{
 		href: '/players',
-		icon: Users,
-		tag: '04',
+		img: playerStats,
+		tag: '05',
 		title: 'Player Stats',
 		subtitle: 'Leaderboards, player search, and full career stat breakdowns.',
 		cta: 'Explore Players',
 	},
 ];
 
-const N = CARDS.length; // 4
+const N = CARDS.length; // 5
 
 // Resolve card from any integer position (wraps around)
 function cardAt(pos: number) {
@@ -57,19 +72,27 @@ export default function Home() {
 	const [center, setCenter] = useState(0);
 	const [isDragging, setIsDragging] = useState(false);
 	const startXRef = useRef(0);
+	const router = useRouter();
 
 	const prev = useCallback(() => setCenter(c => c - 1), []);
 	const next = useCallback(() => setCenter(c => c + 1), []);
 
-	// Arrow key navigation
+	// Mirror center into a ref so the key handler always reads the latest value
+	// without needing `center` in the effect deps (which would change the array size
+	// on hot-reload and trigger a React warning).
+	const centerRef = useRef(center);
+	centerRef.current = center;
+
+	// Arrow key navigation — stable deps, reads center via ref
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
 			else if (e.key === 'ArrowRight') { e.preventDefault(); next(); }
+			else if (e.key === 'Enter') { e.preventDefault(); router.push(cardAt(centerRef.current).href); }
 		};
 		window.addEventListener('keydown', handleKeyDown);
 		return () => window.removeEventListener('keydown', handleKeyDown);
-	}, [prev, next]);;
+	}, [prev, next, router]);
 
 	const wheelCooldown = useRef(false);
 	const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -140,7 +163,6 @@ export default function Home() {
 							const isActive = offset === 0;
 							const visible  = Math.abs(offset) <= 1;
 							const card     = cardAt(absPos);
-							const Icon     = card.icon;
 
 							return (
 								<Link
@@ -172,24 +194,33 @@ export default function Home() {
 										style={{ background: isActive ? 'linear-gradient(to right,var(--sandy-brown),transparent)' : 'linear-gradient(to right,var(--sage-green),transparent)' }}
 									/>
 
-									<div className="p-8 flex flex-col gap-5 flex-1">
-										<div className="flex items-start justify-between">
-											<span className="text-[10px] font-black tracking-[0.3em] uppercase" style={{ color: 'var(--palm-leaf)' }}>
-												{card.tag}
-											</span>
-											<div
-												className="w-12 h-12 rounded-xl flex items-center justify-center"
-												style={isActive
-													? { background: 'rgba(var(--sandy-brown-rgb),0.15)', border: '1px solid rgba(var(--sandy-brown-rgb),0.4)' }
-													: { background: 'rgba(var(--sage-green-rgb),0.1)',   border: '1px solid rgba(var(--sage-green-rgb),0.25)' }
-												}
-											>
-												<Icon className="w-6 h-6" style={{ color: isActive ? 'var(--sandy-brown)' : 'var(--sage-green)' }} />
-											</div>
-										</div>
+									<div className="p-8 flex flex-col gap-4 flex-1">
+										{/* Number tag */}
+										<span className="text-[10px] font-black tracking-[0.3em] uppercase" style={{ color: 'var(--palm-leaf)' }}>
+											{card.tag}
+										</span>
 
+										{/* Big icon */}
+										<Image
+											src={card.img}
+											alt={card.title}
+											width={120}
+											height={120}
+											className="object-contain"
+											style={{ filter: isActive ? 'none' : 'grayscale(20%) opacity(0.75)' }}
+										/>
+
+										{/* Title + subtitle */}
 										<div>
-											<h2 className="text-2xl font-black tracking-tight mb-2">{card.title}</h2>
+											<h2 className="text-2xl font-black tracking-tight mb-2 flex items-center gap-2 flex-wrap">
+												{card.title}
+												{card.href === '/duel' && (
+													<span className="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded align-middle"
+														style={{ background: 'rgba(245,166,91,0.15)', color: 'var(--sandy-brown)', border: '1px solid rgba(245,166,91,0.35)', verticalAlign: 'middle' }}>
+														beta
+													</span>
+												)}
+											</h2>
 											<p className="text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>{card.subtitle}</p>
 										</div>
 

@@ -7,7 +7,25 @@ import PlayerInput from '@/components/PlayerInput';
 import BowlingOrderEditor from '@/components/BowlingOrderEditor';
 import ModelSimulation from '@/components/ModelSimulation';
 import { fetchModels, getApiUrl } from '@/lib/api';
-import { Model } from '@/types';
+import { Model, SlottedPlayer } from '@/types';
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function makeSlots(names: string[], prefix: string): SlottedPlayer[] {
+  return Array.from({ length: 11 }, (_, i) => ({ uid: `${prefix}_${i}`, name: names[i] ?? '' }));
+}
+
+function namesToUidOrder(names: string[], players: SlottedPlayer[]): string[] {
+  const used = new Set<string>();
+  return names.map(name => {
+    const slot = players.find(p => p.name === name && !used.has(p.uid));
+    if (slot) { used.add(slot.uid); return slot.uid; }
+    return players.find(p => p.name === name)?.uid ?? '';
+  });
+}
+
+function uidOrderToNames(order: string[], players: SlottedPlayer[]): string[] {
+  return order.map(uid => players.find(p => p.uid === uid)?.name ?? '');
+}
 
 export default function CompareModels() {
   const [stage, setStage] = useState<'setup' | 'live'>('setup');
@@ -20,11 +38,11 @@ export default function CompareModels() {
   
   const [team1, setTeam1] = useState({ 
       name: "India", 
-      players: ["RG Sharma", "V Kohli", "RR Pant", "SA Yadav", "S Dube", "HH Pandya", "RA Jadeja", "AR Patel", "Kuldeep Yadav", "JJ Bumrah", "Arshdeep Singh"] 
+      players: makeSlots(["RG Sharma","V Kohli","RR Pant","SA Yadav","S Dube","HH Pandya","RA Jadeja","AR Patel","Kuldeep Yadav","JJ Bumrah","Arshdeep Singh"], 't1'),
   });
   const [team2, setTeam2] = useState({ 
       name: "Australia", 
-      players: ["DA Warner", "TM Head", "MR Marsh", "GJ Maxwell", "MP Stoinis", "TH David", "MS Wade", "PJ Cummins", "MA Starc", "A Zampa", "JR Hazlewood"] 
+      players: makeSlots(["DA Warner","TM Head","MR Marsh","GJ Maxwell","MP Stoinis","TH David","MS Wade","PJ Cummins","MA Starc","A Zampa","JR Hazlewood"], 't2'),
   });
 
   // Advanced State
@@ -68,25 +86,24 @@ export default function CompareModels() {
     const setOrder = teamId === 1 ? setBowlingOrder1 : setBowlingOrder2;
     const setLoading = teamId === 1 ? setLoadingOrder1 : setLoadingOrder2;
 
-    const activePlayers = team.players.filter(p => p.trim() !== "");
-    if (activePlayers.length < 5) return;
+    const activeNames = team.players.map(p => p.name).filter(n => n.trim() !== '');
+    if (activeNames.length < 5) return;
 
     setLoading(true);
-    
     try {
       const res = await fetch(getApiUrl('/generate_bowling_order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ players: activePlayers }),
-        cache: 'no-store'
+        body: JSON.stringify({ players: activeNames }),
+        cache: 'no-store',
       });
       if (!res.ok) throw new Error('Failed to generate bowling order');
       const data = await res.json();
       if (data.bowling_order) {
-        setOrder(data.bowling_order);
+        setOrder(namesToUidOrder(data.bowling_order, team.players));
       }
     } catch (e) {
-      console.error("Failed to fetch bowling order", e);
+      console.error('Failed to fetch bowling order', e);
     } finally {
       setLoading(false);
     }
@@ -95,37 +112,37 @@ export default function CompareModels() {
   const fetchEligibleBowlers = async (teamId: 1 | 2) => {
     const team = teamId === 1 ? team1 : team2;
     const setEligible = teamId === 1 ? setEligibleBowlers1 : setEligibleBowlers2;
-    
-    const activePlayers = team.players.filter(p => p.trim() !== "");
-    if (activePlayers.length === 0) return;
+
+    const activeNames = team.players.map(p => p.name).filter(n => n.trim() !== '');
+    if (activeNames.length === 0) return;
 
     try {
       const res = await fetch(getApiUrl('/eligible_bowlers'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ players: activePlayers }),
-        cache: 'no-store'
+        body: JSON.stringify({ players: activeNames }),
+        cache: 'no-store',
       });
       if (!res.ok) throw new Error('Failed to fetch eligible bowlers');
       const data = await res.json();
       if (Array.isArray(data)) {
-          setEligible(data.map((p: { name: string }) => p.name));
+        setEligible(data.map((p: { name: string }) => p.name));
       }
     } catch (e) {
-      console.error("Failed to fetch eligible bowlers", e);
+      console.error('Failed to fetch eligible bowlers', e);
     }
   };
 
   useEffect(() => {
     if (showAdvanced) {
-      if (bowlingOrder1.every(b => b === "") && team1.players.some(p => p)) fetchDefaultBowlingOrder(1);
-      if (bowlingOrder2.every(b => b === "") && team2.players.some(p => p)) fetchDefaultBowlingOrder(2);
+      if (bowlingOrder1.every(b => b === '') && team1.players.some(p => p.name)) fetchDefaultBowlingOrder(1);
+      if (bowlingOrder2.every(b => b === '') && team2.players.some(p => p.name)) fetchDefaultBowlingOrder(2);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAdvanced]);
 
   useEffect(() => {
-    if (showAdvanced && team1.players.some(p => p)) {
+    if (showAdvanced && team1.players.some(p => p.name)) {
       const timer = setTimeout(() => fetchEligibleBowlers(1), 800);
       return () => clearTimeout(timer);
     }
@@ -133,7 +150,7 @@ export default function CompareModels() {
   }, [team1.players, showAdvanced]);
 
   useEffect(() => {
-    if (showAdvanced && team2.players.some(p => p)) {
+    if (showAdvanced && team2.players.some(p => p.name)) {
       const timer = setTimeout(() => fetchEligibleBowlers(2), 800);
       return () => clearTimeout(timer);
     }
@@ -141,20 +158,18 @@ export default function CompareModels() {
   }, [team2.players, showAdvanced]);
 
   const updatePlayer = (tId: 1 | 2, idx: number, v: string) => {
-    const setTeam = tId === 1 ? setTeam1 : setTeam2;
     const team = tId === 1 ? team1 : team2;
-    const n = [...team.players];
-    n[idx] = v;
+    const setTeam = tId === 1 ? setTeam1 : setTeam2;
+    const n = team.players.map((p, i) => i === idx ? { ...p, name: v } : p);
     setTeam({ ...team, players: n });
   };
 
   const bulkPastePlayer = (tId: 1 | 2, startIdx: number, values: string[]) => {
     const team = tId === 1 ? team1 : team2;
     const setTeam = tId === 1 ? setTeam1 : setTeam2;
-    const n = [...team.players];
-    values.forEach((v, offset) => {
-      const slot = startIdx + offset;
-      if (slot < n.length) n[slot] = v;
+    const n = team.players.map((p, i) => {
+      const offset = i - startIdx;
+      return offset >= 0 && offset < values.length ? { ...p, name: values[offset] } : p;
     });
     setTeam({ ...team, players: n });
   };
@@ -198,8 +213,8 @@ export default function CompareModels() {
           </div>
           {team1.players.map((p, i) => (
             <PlayerInput
-              key={i}
-              value={p}
+              key={p.uid}
+              value={p.name}
               index={i}
               onChange={v => updatePlayer(1, i, v)}
               onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [name]: id })); }}
@@ -236,8 +251,8 @@ export default function CompareModels() {
           </div>
           {team2.players.map((p, i) => (
             <PlayerInput
-              key={i}
-              value={p}
+              key={p.uid}
+              value={p.name}
               index={i}
               onChange={v => updatePlayer(2, i, v)}
               onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [name]: id })); }}
@@ -361,11 +376,11 @@ export default function CompareModels() {
             playerIdMap={playerIdMap}
             payload={{
                team1_name: team1.name,
-               team1_players: team1.players,
+               team1_players: team1.players.map(p => p.name),
                team2_name: team2.name,
-               team2_players: team2.players,
-               team1_bowling_order: showAdvanced ? bowlingOrder1 : undefined,
-               team2_bowling_order: showAdvanced ? bowlingOrder2 : undefined,
+               team2_players: team2.players.map(p => p.name),
+               team1_bowling_order: showAdvanced ? uidOrderToNames(bowlingOrder1, team1.players) : undefined,
+               team2_bowling_order: showAdvanced ? uidOrderToNames(bowlingOrder2, team2.players) : undefined,
                num_matches: Math.max(1, parseInt(numMatches) || 1)
             }}
           />
