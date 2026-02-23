@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, GripVertical, Clock, Check, AlertCircle } from 'lucide-react';
 import { teamFlag } from '@/lib/flags';
-import { getApiUrl } from '@/lib/api';
+import { getApiUrl, generateBattingOrder } from '@/lib/api';
 import BowlingOrderEditor from './BowlingOrderEditor';
 import type { SlottedPlayer } from '@/types';
 
@@ -65,6 +65,7 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
   const [batting, setBatting] = useState<string[]>(myTeam.map(p => p.name));
   const [bowlingOrder, setBowlingOrder] = useState<string[]>(() => buildDefaultBowlingOrder(eligibleNames));
   const [loadingDefault, setLoadingDefault] = useState(false);
+  const [loadingBatting, setLoadingBatting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(alreadySubmitted);
   const [submitError, setSubmitError] = useState('');
@@ -110,9 +111,40 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
     }
   }, [eligibleNames]);
 
-  // Auto-fetch on mount (so the ILP order loads immediately, not just on reset)
+  // ── Call the batting order endpoint to get the optimal default ────────
+  const allPlayerNames = myTeam.map(p => p.name);
+  const fetchBattingOrder = useCallback(async () => {
+    if (allPlayerNames.length === 0) return;
+    setLoadingBatting(true);
+    try {
+      const items = await generateBattingOrder(allPlayerNames);
+      // API returns sorted by position — extract player names in order
+      const ordered = items.map(item => item.player);
+      // Map back to the actual names on myTeam (common name may differ from team name)
+      // Prefer exact match, fall back to positional
+      const resolved = ordered.map(displayName => {
+        const found = myTeam.find(p => p.name === displayName);
+        return found ? found.name : displayName;
+      });
+      // Only keep players that are actually in the team (guards against stale data)
+      const validResolved = resolved.filter(n => allPlayerNames.includes(n));
+      // Append any players not returned by the API (shouldn't happen, but safety net)
+      const missing = allPlayerNames.filter(n => !validResolved.includes(n));
+      setBatting([...validResolved, ...missing]);
+    } catch {
+      // If the endpoint fails, keep the draft order as-is
+    } finally {
+      setLoadingBatting(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-fetch both orders on mount
   useEffect(() => {
-    if (!alreadySubmitted) fetchIlpOrder();
+    if (!alreadySubmitted) {
+      fetchIlpOrder();
+      fetchBattingOrder();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -295,10 +327,22 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
       {/* ── Batting order (drag-and-drop) ─────────────────────────────────── */}
       {tab === 'bat' && (
         <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <div className="text-[9px] uppercase font-black tracking-widest mb-1" style={{ color: 'var(--sage-green)' }}>
-            Batting Order
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-[9px] uppercase font-black tracking-widest" style={{ color: 'var(--sage-green)' }}>
+              Batting Order
+            </div>
+            {loadingBatting && (
+              <div className="flex items-center gap-1.5">
+                <Loader2 className="w-3 h-3 animate-spin" style={{ color: 'var(--sage-green)' }} />
+                <span className="text-[9px] font-bold" style={{ color: 'var(--sage-green)' }}>Generating optimal order…</span>
+              </div>
+            )}
           </div>
-          <div className="text-xs mb-3" style={{ color: 'var(--muted)' }}>Drag rows to reorder your 11 batters.</div>
+          <div className="text-xs mb-3" style={{ color: 'var(--muted)' }}>
+            {loadingBatting
+              ? 'Calculating the best batting order using historical position data…'
+              : 'Drag rows to reorder your 11 batters.'}
+          </div>
           <div className="flex flex-col gap-1.5">
             {batting.map((name, i) => {
               const p = myTeam.find(pl => pl.name === name);
@@ -306,7 +350,7 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
               return (
                 <div
                   key={name}
-                  draggable={!submitted}
+                  draggable={!submitted && !loadingBatting}
                   onDragStart={() => onDragStart(i)}
                   onDragEnter={() => onDragEnter(i)}
                   onDragOver={e => e.preventDefault()}
@@ -316,12 +360,12 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
                   style={{
                     background: isDragTarget ? 'rgba(108,174,117,0.1)' : 'var(--surface-2)',
                     border: `1px solid ${isDragTarget ? 'var(--sage-green)' : 'var(--border)'}`,
-                    cursor: submitted ? 'default' : 'grab',
-                    opacity: dragIdx.current === i ? 0.5 : 1,
+                    cursor: submitted || loadingBatting ? 'default' : 'grab',
+                    opacity: loadingBatting ? 0.5 : dragIdx.current === i ? 0.5 : 1,
                   }}
                 >
                   <span className="text-[10px] font-black font-mono w-5 text-center" style={{ color: 'var(--muted)' }}>{i + 1}</span>
-                  <GripVertical className="w-4 h-4 flex-shrink-0" style={{ color: submitted ? 'var(--border)' : 'var(--muted)' }} />
+                  <GripVertical className="w-4 h-4 flex-shrink-0" style={{ color: submitted || loadingBatting ? 'var(--border)' : 'var(--muted)' }} />
                   <span className="text-sm">{p ? teamFlag([p.team]) : ''}</span>
                   <span className="flex-1 text-sm font-bold truncate">{name}</span>
                   {p?.can_bowl && (

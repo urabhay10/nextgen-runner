@@ -1,6 +1,6 @@
 // src/lib/api.ts
 
-import { Model } from '@/types';
+import { Model, BattingOrderItem } from '@/types';
 
 // Use Next.js environment storage or fallback
 const API_Base = process.env.NEXT_PUBLIC_API_URL || 'https://hewhocodes247-cricket-transformer-api.hf.space';
@@ -9,27 +9,48 @@ export async function fetchModels(): Promise<Model[]> {
   try {
     const res = await fetch(`${API_Base}/models`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Failed to fetch models');
-    
-    // The API returns { default: string, models: string[] }
-    // We need to transform this into Model[]
+
     const data = await res.json();
-    
-    // Check if data.models exists and is an array
-    if (data && Array.isArray(data.models)) {
-      return data.models.map((filename: string) => ({
-        id: filename,
-        name: filename.replace('.h5', '').replace(/_/g, ' '),
+
+    // New API shape: { default, models: [{filename, display_name}] }
+    if (data && Array.isArray(data.models) && data.models[0]?.filename) {
+      return data.models.map((m: { filename: string; display_name: string }) => ({
+        id: m.filename,
+        name: m.display_name,
         version: '1.0',
-        description: 'AI Model'
+        description: 'AI Model',
       }));
     }
-    
-    // Fallback if the API changes or returns something else
+
+    // Legacy fallback: models was a plain string[]
+    if (data && Array.isArray(data.models)) {
+      return (data.models as string[]).map((filename: string) => {
+        const match = filename.match(/^model_\d+_(.+)\.h5$/);
+        return {
+          id: filename,
+          name: match ? match[1].replace(/_/g, ' ') : filename.replace('.h5', '').replace(/_/g, ' '),
+          version: '1.0',
+          description: 'AI Model',
+        };
+      });
+    }
+
     return [];
   } catch (error) {
     console.error('Error fetching models:', error);
     return [];
   }
+}
+
+export async function generateBattingOrder(players: string[]): Promise<BattingOrderItem[]> {
+  const res = await fetch(`${API_Base}/generate_batting_order`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ players }),
+  });
+  if (!res.ok) throw new Error('Failed to generate batting order');
+  const data = await res.json();
+  return data.batting_order as BattingOrderItem[];
 }
 
 export function getApiUrl(path: string): string {

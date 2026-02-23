@@ -83,7 +83,15 @@ export interface SeriesSummaryData {
   }[];
 }
 
-/** A player slot with a stable uid so duplicate names are always distinguishable. */
+/** A single entry in a generated batting order. */
+export interface BattingOrderItem {
+  position: number;
+  player: string;
+  fit_score: number;
+  caps: number;
+}
+
+/** A stable slot identifier so duplicate names are always distinguishable. */
 export interface SlottedPlayer {
   /** Stable slot identifier, e.g. "t1_0", "t1_1". Never changes even when the name changes. */
   uid: string;
