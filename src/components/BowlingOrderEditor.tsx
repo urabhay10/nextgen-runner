@@ -102,7 +102,7 @@ const BowlingOrderEditor = ({
           className="text-xs flex items-center gap-2 px-3 py-1.5 rounded bg-[var(--border)] hover:bg-[rgba(var(--border-rgb),0.8)] text-[var(--muted)] transition disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-          {loading ? 'Generating…' : 'Generate (ILP)'}
+          {loading ? 'Generating…' : 'Generate'}
         </button>
       </div>
 

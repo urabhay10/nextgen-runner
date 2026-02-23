@@ -38,11 +38,11 @@ export default function CompareModels() {
   
   const [team1, setTeam1] = useState({ 
       name: "India", 
-      players: makeSlots(["RG Sharma","V Kohli","RR Pant","SA Yadav","S Dube","HH Pandya","RA Jadeja","AR Patel","Kuldeep Yadav","JJ Bumrah","Arshdeep Singh"], 't1'),
+      players: makeSlots(["Rohit Sharma","Virat Kohli","Rishabh Pant","Suryakumar Yadav","Shivam Dube","Hardik Pandya","Ravindra Jadeja","Axar Patel","Kuldeep Yadav","Jasprit Bumrah","Arshdeep Singh"], 't1'),
   });
   const [team2, setTeam2] = useState({ 
       name: "Australia", 
-      players: makeSlots(["DA Warner","TM Head","MR Marsh","GJ Maxwell","MP Stoinis","TH David","MS Wade","PJ Cummins","MA Starc","A Zampa","JR Hazlewood"], 't2'),
+      players: makeSlots(["David Warner","Travis Head","Mitchell Marsh","Glenn Maxwell","Marcus Stoinis","Tim David","Matthew Wade","Pat Cummins","Mitchell Starc","Adam Zampa","Josh Hazlewood"], 't2'),
   });
 
   // Advanced State

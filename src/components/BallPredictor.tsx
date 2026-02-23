@@ -19,8 +19,8 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
     ball: 1,
     total_runs: 150,
     wickets: 4,
-    striker_name: "V Kohli",
-    bowler_name: "MA Starc",
+    striker_name: "Virat Kohli",
+    bowler_name: "Mitchell Starc",
     target: ""
   });
   const [results, setResults] = useState<any[]>([]); // Array of { modelName, data }

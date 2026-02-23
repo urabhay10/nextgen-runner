@@ -20,6 +20,8 @@ export default function ModelSimulation({ model, payload, start, playerIdMap }: 
   const [seriesComplete, setSeriesComplete] = useState<SeriesSummaryData | null>(null);
   const [status, setStatus] = useState<'idle' | 'running' | 'complete' | 'error'>('idle');
   const simulationIdRef = useRef(0);
+  // Throttle live scorecard: only re-render every 10 balls to avoid per-ball React overhead
+  const ballCountRef = useRef(0);
 
   useEffect(() => {
     if (!start) return;
@@ -34,6 +36,7 @@ export default function ModelSimulation({ model, payload, start, playerIdMap }: 
       setSeriesComplete(null);
       setCompletedMatches([]);
       setLiveSummary(null);
+      ballCountRef.current = 0;
 
       try {
         const fullPayload = { ...payload, model: model.id };
@@ -58,7 +61,11 @@ export default function ModelSimulation({ model, payload, start, playerIdMap }: 
             const data = JSON.parse(line);
             if (data.type === 'ball') {
               if (simulationIdRef.current === simId) {
+                // Throttle: only update ScoreCardLive every 10 balls to minimise re-renders
+                ballCountRef.current += 1;
+                if (ballCountRef.current % 10 === 0) {
                   setMatchDetail(data.detail);
+                }
               }
             } else if (data.type === 'match_update' || data.type === 'match_complete') {
                if (simulationIdRef.current === simId) {

@@ -5,6 +5,7 @@ import { Eye, Swords, Loader2, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { teamFlag } from '@/lib/flags';
 import { getApiUrl } from '@/lib/api';
+import { useCommonNames, dn } from '@/lib/commonNames';
 
 interface PoolPlayer { name: string; team: string; can_bowl: boolean; }
 interface SpectatorViewProps { match: any; }
@@ -75,7 +76,7 @@ function useCountdown(deadlineIso: string | null) {
 }
 
 // ── Shared: team slot row ──────────────────────────────────────────────────────
-function TeamSlot({ p, accent }: { p?: PoolPlayer; accent: 'green' | 'orange' }) {
+function TeamSlot({ p, accent, cn = new Map() }: { p?: PoolPlayer; accent: 'green' | 'orange'; cn?: Map<string, string> }) {
   if (!p) {
     return (
       <div className="rounded-lg h-10 flex items-center px-2"
@@ -88,7 +89,7 @@ function TeamSlot({ p, accent }: { p?: PoolPlayer; accent: 'green' | 'orange' })
     <div className="rounded-lg h-10 flex items-center gap-2 px-2"
       style={{ background: bg, border: `1px solid ${border}` }}>
       <span className="text-sm flex-shrink-0">{teamFlag([p.team])}</span>
-      <span className="text-xs font-bold truncate flex-1">{p.name}</span>
+      <span className="text-xs font-bold truncate flex-1">{dn(p.name, cn)}</span>
       {p.can_bowl && (
         <span className="text-[7px] px-1 py-0.5 rounded font-black flex-shrink-0"
           style={{ background: 'rgba(245,166,91,0.2)', color: 'var(--sandy-brown)' }}>B</span>
@@ -98,8 +99,8 @@ function TeamSlot({ p, accent }: { p?: PoolPlayer; accent: 'green' | 'orange' })
 }
 
 // ── Shared: pool card (void via visibility:hidden when taken) ──────────────────
-function PoolCard({ p, taken, isPickingTurn, stats }: {
-  p: PoolPlayer; taken: boolean; isPickingTurn: boolean; stats?: PlayerMiniStats;
+function PoolCard({ p, taken, isPickingTurn, stats, cn = new Map() }: {
+  p: PoolPlayer; taken: boolean; isPickingTurn: boolean; stats?: PlayerMiniStats; cn?: Map<string, string>;
 }) {
   return (
     <div className="relative rounded-xl flex flex-col items-center justify-center gap-0.5 p-1.5 text-center select-none w-full h-full"
@@ -118,7 +119,7 @@ function PoolCard({ p, taken, isPickingTurn, stats }: {
           overflow: 'hidden',
           color: 'var(--foreground)',
         } as React.CSSProperties}>
-        {p.name}
+        {dn(p.name, cn)}
       </span>
       {p.can_bowl && (
         <span className="text-[7px] px-1.5 py-0.5 rounded font-black"
@@ -199,6 +200,7 @@ function ThreeCol({
   gridCols = 6,
   gridRef,
   poolStats,
+  cn = new Map(),
 }: {
   p1Team: PoolPlayer[]; p2Team: PoolPlayer[];
   pool: PoolPlayer[]; takenAll: Set<string>;
@@ -207,6 +209,7 @@ function ThreeCol({
   gridCols?: number;
   gridRef?: React.RefObject<HTMLDivElement | null>;
   poolStats?: Map<string, PlayerMiniStats>;
+  cn?: Map<string, string>;
 }) {
   return (
     <div className="flex-1 flex min-h-0 overflow-hidden">
@@ -216,7 +219,7 @@ function ThreeCol({
         <div className="text-[8px] uppercase font-black tracking-widest mb-0.5" style={{ color: 'var(--sage-green)' }}>
           Picked
         </div>
-        {Array.from({ length: 11 }, (_, i) => <TeamSlot key={i} p={p1Team[i]} accent="green" />)}
+        {Array.from({ length: 11 }, (_, i) => <TeamSlot key={i} p={p1Team[i]} accent="green" cn={cn} />)}
         <div className="mt-1 text-[8px] font-black uppercase tracking-widest text-center"
           style={{ color: p1Team.filter(p => p.can_bowl).length >= 5 ? 'var(--sage-green)' : 'var(--muted)' }}>
           {p1Team.filter(p => p.can_bowl).length}/5 bowlers
@@ -244,7 +247,7 @@ function ThreeCol({
             >
               {pool.map(p => (
                 <PoolCard key={p.name} p={p} taken={takenAll.has(p.name)} isPickingTurn={isPickingTurn}
-                  stats={poolStats?.get(p.name)} />
+                  stats={poolStats?.get(p.name)} cn={cn} />
               ))}
             </div>
           </>
@@ -257,7 +260,7 @@ function ThreeCol({
         <div className="text-[8px] uppercase font-black tracking-widest mb-0.5" style={{ color: 'var(--sandy-brown)' }}>
           Picked
         </div>
-        {Array.from({ length: 11 }, (_, i) => <TeamSlot key={i} p={p2Team[i]} accent="orange" />)}
+        {Array.from({ length: 11 }, (_, i) => <TeamSlot key={i} p={p2Team[i]} accent="orange" cn={cn} />)}
         <div className="mt-1 text-[8px] font-black uppercase tracking-widest text-center"
           style={{ color: p2Team.filter(p => p.can_bowl).length >= 5 ? 'var(--sage-green)' : 'var(--muted)' }}>
           {p2Team.filter(p => p.can_bowl).length}/5 bowlers
@@ -277,6 +280,9 @@ function SpectatorCountdown({ match }: { match: any }) {
   const [poolStats, setPoolStats] = useState<Map<string, PlayerMiniStats>>(new Map());
   const [gridCols, setGridCols]   = useState(6);
   const gridRef                   = useRef<HTMLDivElement>(null);
+
+  // Fetch common (display) names for the pool once on mount
+  const cn = useCommonNames(pool.map(p => p.name));
 
   // Fetch mini-stats for all pool players once on mount
   useEffect(() => {
@@ -325,6 +331,7 @@ function SpectatorCountdown({ match }: { match: any }) {
         p1Team={[]} p2Team={[]}
         pool={pool} takenAll={new Set()}
         isPickingTurn={false}
+        cn={cn}
         centerPanel={
           <div className="h-full flex flex-col min-h-0">
             {/* Draft rules */}
@@ -366,7 +373,7 @@ function SpectatorCountdown({ match }: { match: any }) {
             >
               {pool.map((p: PoolPlayer) => (
                 <PoolCard key={p.name} p={p} taken={false} isPickingTurn={false}
-                  stats={poolStats.get(p.name)} />
+                  stats={poolStats.get(p.name)} cn={cn} />
               ))}
             </div>
             <p className="flex-none mt-2 text-center text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
@@ -402,6 +409,9 @@ function SpectatorDraft({ match }: { match: any }) {
   const [poolStats, setPoolStats] = useState<Map<string, PlayerMiniStats>>(new Map());
   const [gridCols, setGridCols]   = useState(6);
   const gridRef                   = useRef<HTMLDivElement>(null);
+
+  // Fetch common (display) names for the pool once on mount
+  const cn = useCommonNames(pool.map(p => p.name));
 
   // Fetch mini-stats for all pool players once on mount
   useEffect(() => {
@@ -484,6 +494,7 @@ function SpectatorDraft({ match }: { match: any }) {
         gridCols={gridCols}
         gridRef={gridRef}
         poolStats={poolStats}
+        cn={cn}
       />
     </div>
   );
@@ -497,6 +508,10 @@ function SpectatorOrdering({ match }: { match: any }) {
   const p2Team: PoolPlayer[] = match.player2_team ?? [];
   const pool: PoolPlayer[]   = match.player_pool ?? [];
   const takenAll             = new Set([...p1Team, ...p2Team].map(p => p.name));
+
+  // Fetch common (display) names for the pool once on mount
+  const allNames = pool.map(p => p.name);
+  const cn = useCommonNames(allNames);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden"
@@ -541,6 +556,7 @@ function SpectatorOrdering({ match }: { match: any }) {
         p1Team={p1Team} p2Team={p2Team}
         pool={pool} takenAll={takenAll}
         isPickingTurn={false}
+        cn={cn}
         centerPanel={
           <div className="h-full flex flex-col items-center justify-center gap-3 py-16">
             <Swords className="w-8 h-8" style={{ color: 'var(--sandy-brown)' }} />

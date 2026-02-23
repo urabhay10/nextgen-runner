@@ -5,6 +5,7 @@ import { Swords, Check, Loader2, ShieldCheck } from 'lucide-react';
 import { teamFlag } from '@/lib/flags';
 import { getApiUrl } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
+import { useCommonNames, dn } from '@/lib/commonNames';
 
 interface PoolPlayer { name: string; team: string; can_bowl: boolean; }
 interface PlayerMiniStats { runs: number; sr: number; wkts: number | null; eco: number | null; }
@@ -29,6 +30,9 @@ export default function DuelCountdown({ match, myUserId }: DuelCountdownProps) {
 
   const pool: PoolPlayer[] = match.player_pool ?? [];
   const bowlerCount = pool.filter(p => p.can_bowl).length;
+
+  // Fetch common (display) names for all pool players — display only, never sent to server
+  const cn = useCommonNames(pool.map(p => p.name));
 
   // ── Fetch mini-stats for all pool players ─────────────────────────────
   const [poolStats, setPoolStats] = useState<Map<string, PlayerMiniStats>>(new Map());
@@ -220,7 +224,7 @@ export default function DuelCountdown({ match, myUserId }: DuelCountdownProps) {
                   border: `1px solid ${p.can_bowl ? 'rgba(245,166,91,0.25)' : 'var(--border)'}`,
                 }}>
                 <span className="text-[11px] flex-shrink-0">{teamFlag([p.team])}</span>
-                <span className="flex-1 text-xs font-black truncate">{p.name}</span>
+                <span className="flex-1 text-xs font-black truncate">{dn(p.name, cn)}</span>
                 {/* Stats inline */}
                 {s && (
                   <div className="flex items-center gap-3 flex-shrink-0 mr-1">

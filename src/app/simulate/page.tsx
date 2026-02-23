@@ -130,8 +130,8 @@ export default function Simulator() {
   }, []);
 
   const fillDefaults = () => {
-    setTeam1({ name: "India",     players: makeSlots(["RG Sharma","V Kohli","RR Pant","SA Yadav","S Dube","HH Pandya","RA Jadeja","AR Patel","Kuldeep Yadav","JJ Bumrah","Arshdeep Singh"], 't1') });
-    setTeam2({ name: "Australia", players: makeSlots(["DA Warner","TM Head","MR Marsh","GJ Maxwell","MP Stoinis","TH David","MS Wade","PJ Cummins","MA Starc","A Zampa","JR Hazlewood"], 't2') });
+    setTeam1({ name: "India",     players: makeSlots(["Rohit Sharma","Virat Kohli","Rishabh Pant","Suryakumar Yadav","Shivam Dube","Hardik Pandya","Ravindra Jadeja","Axar Patel","Kuldeep Yadav","Jasprit Bumrah","Arshdeep Singh"], 't1') });
+    setTeam2({ name: "Australia", players: makeSlots(["David Warner","Travis Head","Mitchell Marsh","Glenn Maxwell","Marcus Stoinis","Tim David","Matthew Wade","Pat Cummins","Mitchell Starc","Adam Zampa","Josh Hazlewood"], 't2') });
   };
 
   const fetchDefaultBowlingOrder = async (teamId: 1 | 2) => {
@@ -345,24 +345,33 @@ export default function Simulator() {
         try {
           const data = JSON.parse(line);
           if (data.type === 'ball') {
-            // Wait if paused
-            await waitIfPaused();
-            if (simulationIdRef.current !== currentSimId) return;
-            // Apply delay
-            const currentDelay = delayMsRef.current;
-            if (currentDelay > 0) await wait(currentDelay);
-            if (simulationIdRef.current !== currentSimId) return;
+            const isMax = delayMsRef.current === 0;
 
+            // At MAX speed (and not single-stepping): skip await/delay overhead entirely
+            if (!isMax || pausedRef.current) {
+              // Wait if paused
+              await waitIfPaused();
+              if (simulationIdRef.current !== currentSimId) return;
+              // Apply delay
+              const currentDelay = delayMsRef.current;
+              if (currentDelay > 0) await wait(currentDelay);
+              if (simulationIdRef.current !== currentSimId) return;
+            }
+
+            // Always update live ScoreCard (cheap single-object swap)
             setMatchDetail(data.detail);
-            setBallEvents(prev => {
-              const currentMatchNo = data.match_no;
-              const lastMatchNo = prev.length > 0 ? prev[prev.length - 1].match_no : currentMatchNo;
-              if (currentMatchNo !== lastMatchNo) {
-                // Return a new array for new match to reset commentary or handle transitions if needed.
-                return [{ ...data.detail, runs_scored: data.detail.runs_scored, is_wicket: data.detail.is_wicket, innings: data.innings, match_no: data.match_no } as BallEvent];
-              }
-              return [...prev, { ...data.detail, runs_scored: data.detail.runs_scored, is_wicket: data.detail.is_wicket, innings: data.innings, match_no: data.match_no } as BallEvent];
-            });
+
+            // At MAX speed skip commentary accumulation — the expensive prev => [...prev, x] copy
+            if (!isMax || pausedRef.current) {
+              setBallEvents(prev => {
+                const currentMatchNo = data.match_no;
+                const lastMatchNo = prev.length > 0 ? prev[prev.length - 1].match_no : currentMatchNo;
+                if (currentMatchNo !== lastMatchNo) {
+                  return [{ ...data.detail, runs_scored: data.detail.runs_scored, is_wicket: data.detail.is_wicket, innings: data.innings, match_no: data.match_no } as BallEvent];
+                }
+                return [...prev, { ...data.detail, runs_scored: data.detail.runs_scored, is_wicket: data.detail.is_wicket, innings: data.innings, match_no: data.match_no } as BallEvent];
+              });
+            }
           } else if (data.type === 'match_update') {
             // Append new matches to the end of the list so previous matches don't shift down
             setHistory(prev => [...prev, data]);

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { teamFlag } from '@/lib/flags';
 import { getApiUrl } from '@/lib/api';
+import { useCommonNames, dn } from '@/lib/commonNames';
 import { Loader2, Shuffle, Clock, Home } from 'lucide-react';
 
 interface PoolPlayer { name: string; team: string; can_bowl: boolean; }
@@ -55,7 +56,7 @@ function useCountdown(deadlineIso: string | null) {
 }
 
 // ── Team slot row ──────────────────────────────────────────────────────────────
-function TeamSlot({ p, accent }: { p?: PoolPlayer; accent: 'green' | 'orange' }) {
+function TeamSlot({ p, accent, cn }: { p?: PoolPlayer; accent: 'green' | 'orange'; cn: Map<string, string> }) {
   if (!p) {
     return (
       <div className="rounded h-7 flex items-center px-1.5"
@@ -68,7 +69,7 @@ function TeamSlot({ p, accent }: { p?: PoolPlayer; accent: 'green' | 'orange' })
     <div className="rounded h-7 flex items-center gap-1.5 px-1.5"
       style={{ background: bg, border: `1px solid ${border}` }}>
       <span className="text-xs flex-shrink-0 leading-none">{teamFlag([p.team])}</span>
-      <span className="text-[10px] font-bold truncate flex-1 leading-tight">{p.name}</span>
+      <span className="text-[10px] font-bold truncate flex-1 leading-tight">{dn(p.name, cn)}</span>
       {p.can_bowl && (
         <span className="text-[6px] px-0.5 py-px rounded font-black flex-shrink-0"
           style={{ background: 'rgba(245,166,91,0.2)', color: 'var(--sandy-brown)' }}>B</span>
@@ -85,8 +86,9 @@ interface PoolCardProps {
   picking: boolean;
   onClick: () => void;
   stats?: PlayerMiniStats;
+  cn: Map<string, string>;
 }
-function PoolCard({ p, taken, isMyTurn, picking, onClick, stats }: PoolCardProps) {
+function PoolCard({ p, taken, isMyTurn, picking, onClick, stats, cn }: PoolCardProps) {
   const canClick = isMyTurn && !picking && !taken;
   return (
     <div
@@ -120,7 +122,7 @@ function PoolCard({ p, taken, isMyTurn, picking, onClick, stats }: PoolCardProps
           overflow: 'hidden',
           color: 'var(--foreground)',
         } as React.CSSProperties}>
-        {p.name}
+        {dn(p.name, cn)}
       </span>
       {p.can_bowl && (
         <span className="text-[7px] px-1.5 py-0.5 rounded font-black"
@@ -183,6 +185,9 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
 
   const isP1       = match.player1_user_id === myUserId;
   const pool: PoolPlayer[]   = match.player_pool ?? [];
+
+  // ── Fetch common/display names for all pool players once on mount ──────
+  const cn = useCommonNames(pool.map(p => p.name));
 
   // ── Fetch mini-stats for all pool players once on mount ────────────────
   useEffect(() => {
@@ -413,7 +418,7 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
             <span>Your Team</span>
             <span style={{ color: 'var(--muted)' }}>{myTeam.length}/11</span>
           </div>
-          {Array.from({ length: 11 }, (_, i) => <TeamSlot key={i} p={myTeam[i]} accent="green" />)}
+          {Array.from({ length: 11 }, (_, i) => <TeamSlot key={i} p={myTeam[i]} accent="green" cn={cn} />)}
           <div className="mt-0.5 text-[7px] font-black uppercase tracking-widest text-center"
             style={{ color: myBowlerCount >= 5 ? 'var(--sage-green)' : 'var(--muted)' }}>
             {myBowlerCount}/5 bowlers
@@ -450,6 +455,7 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
                 <PoolCard key={p.name} p={p} taken={taken}
                   isMyTurn={isMyTurn} picking={picking}
                   stats={poolStats.get(p.name)}
+                  cn={cn}
                   onClick={() => handlePick(p.name)} />
               );
             })}
@@ -464,7 +470,7 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
             <span>{oppName}</span>
             <span style={{ color: 'var(--muted)' }}>{oppTeam.length}/11</span>
           </div>
-          {Array.from({ length: 11 }, (_, i) => <TeamSlot key={i} p={oppTeam[i]} accent="orange" />)}
+          {Array.from({ length: 11 }, (_, i) => <TeamSlot key={i} p={oppTeam[i]} accent="orange" cn={cn} />)}
           <div className="mt-0.5 text-[7px] font-black uppercase tracking-widest text-center"
             style={{ color: oppTeam.filter(p => p.can_bowl).length >= 5 ? 'var(--sage-green)' : 'var(--muted)' }}>
             {oppTeam.filter(p => p.can_bowl).length}/5 bowlers

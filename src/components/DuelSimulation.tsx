@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, Swords, ArrowLeft, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { getApiUrl } from '@/lib/api';
+import { fetchCommonNames } from '@/lib/commonNames';
 import { supabase } from '@/lib/supabase';
 import ScoreCardLive from './ScoreCardLive';
 import Commentary from './Commentary';
@@ -74,6 +75,20 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
   const triggeredRef   = useRef(false);   // have we POSTed /simulate yet?
   onCompleteRef.current = onComplete;
 
+  // ── Common names map (display-only) ──────────────────────────────────
+  const commonNamesRef = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    // Collect all player names from both teams
+    const allNames: string[] = [
+      ...(match.player1_team ?? []).map((p: any) => p.name),
+      ...(match.player2_team ?? []).map((p: any) => p.name),
+    ];
+    if (!allNames.length) return;
+    fetchCommonNames(allNames).then(m => { commonNamesRef.current = m; });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match.id]);
+
   // ── Event queue + timed drain ─────────────────────────────────────────────
   // All incoming rows are pushed onto this queue; the drain loop pops one per
   // delayMs so the display speed is governed by match.sim_speed.
@@ -125,7 +140,13 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
       return;
     }
     if (ev.type === 'ball') {
+      const cn = commonNamesRef.current;
+      const resolve = (n: string) => cn.get(n) ?? n;
       const be = toBallEvent(ev, row.innings);
+      // Remap display-only names in the ball event (engine names → common names)
+      if (be.striker)     be.striker     = { ...be.striker,     name: resolve(be.striker.name) };
+      if (be.non_striker) be.non_striker = { ...be.non_striker, name: resolve(be.non_striker.name) };
+      if (be.bowler)      be.bowler      = { ...be.bowler,      name: resolve(be.bowler.name) };
       if (row.innings === 1) setBalls1(prev => [...prev, be]);
       else                   setBalls2(prev => [...prev, be]);
       setLoading(false);

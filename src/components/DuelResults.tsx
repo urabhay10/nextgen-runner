@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Swords, ArrowLeft, RotateCcw } from 'lucide-react';
 import DetailedScorecard from './DetailedScorecard';
+import { fetchCommonNames, dn } from '@/lib/commonNames';
 
 interface DuelResultsProps {
   match: any;
@@ -23,6 +24,37 @@ export default function DuelResults({ match, myUserId, result, scorecard }: Duel
   // Ensure batting-first team is always the first tab / left column.
   const teams = Object.keys(scorecard).sort((a) => (a === result.batting_first ? -1 : 1));
   const [tab, setTab] = useState(result.batting_first ?? teams[0]);
+
+  // ── Common names (display-only) ────────────────────────────────────────
+  const [cn, setCn] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    // Collect all player names from both teams' scorecards
+    const names: string[] = [];
+    Object.values(scorecard).forEach((sc: any) => {
+      (sc.batting ?? []).forEach((b: any) => { if (b.name) names.push(b.name); if (b.out_by) names.push(b.out_by); });
+      (sc.bowling ?? []).forEach((b: any) => { if (b.name) names.push(b.name); });
+    });
+    if (!names.length) return;
+    fetchCommonNames([...new Set(names)]).then(setCn);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Apply common-name mapping to a scorecard object for display only. */
+  function mapScorecard(sc: any): any {
+    if (!sc) return sc;
+    return {
+      ...sc,
+      batting: (sc.batting ?? []).map((b: any) => ({
+        ...b,
+        name: dn(b.name, cn),
+        out_by: b.out_by ? dn(b.out_by, cn) : b.out_by,
+      })),
+      bowling: (sc.bowling ?? []).map((b: any) => ({
+        ...b,
+        name: dn(b.name, cn),
+      })),
+    };
+  }
 
   return (
     <div className="min-h-screen px-4 py-6 max-w-3xl mx-auto" style={{ color: 'var(--foreground)' }}>
@@ -86,7 +118,7 @@ export default function DuelResults({ match, myUserId, result, scorecard }: Duel
         {/* Detailed scorecard — same component as /simulate match history */}
         <div className="p-4">
           {tab && scorecard[tab] && (
-            <DetailedScorecard teamName={tab} data={scorecard[tab]} />
+            <DetailedScorecard teamName={tab} data={mapScorecard(scorecard[tab])} />
           )}
         </div>
       </div>

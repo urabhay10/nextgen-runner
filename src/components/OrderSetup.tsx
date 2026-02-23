@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, GripVertical, Clock, Check, AlertCircle } from 'lucide-react';
 import { teamFlag } from '@/lib/flags';
 import { getApiUrl, generateBattingOrder } from '@/lib/api';
+import { useCommonNames, dn } from '@/lib/commonNames';
 import BowlingOrderEditor from './BowlingOrderEditor';
 import type { SlottedPlayer } from '@/types';
 
@@ -62,6 +63,9 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
   const eligibleBowlers = myTeam.filter(p => p.can_bowl === true);
   const eligibleNames   = eligibleBowlers.map(p => p.name);
 
+  // ── Common names (display-only — never sent back to server) ────────────
+  const cn = useCommonNames(myTeam.map(p => p.name));
+
   const [batting, setBatting] = useState<string[]>(myTeam.map(p => p.name));
   const [bowlingOrder, setBowlingOrder] = useState<string[]>(() => buildDefaultBowlingOrder(eligibleNames));
   const [loadingDefault, setLoadingDefault] = useState(false);
@@ -114,30 +118,28 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
   // ── Call the batting order endpoint to get the optimal default ────────
   const allPlayerNames = myTeam.map(p => p.name);
   const fetchBattingOrder = useCallback(async () => {
-    if (allPlayerNames.length === 0) return;
+    const names = myTeam.map(p => p.name);
+    if (names.length === 0) return;
     setLoadingBatting(true);
     try {
-      const items = await generateBattingOrder(allPlayerNames);
+      const items = await generateBattingOrder(names);
+      if (!Array.isArray(items) || items.length === 0) return;
       // API returns sorted by position — extract player names in order
       const ordered = items.map(item => item.player);
-      // Map back to the actual names on myTeam (common name may differ from team name)
-      // Prefer exact match, fall back to positional
-      const resolved = ordered.map(displayName => {
-        const found = myTeam.find(p => p.name === displayName);
-        return found ? found.name : displayName;
-      });
-      // Only keep players that are actually in the team (guards against stale data)
-      const validResolved = resolved.filter(n => allPlayerNames.includes(n));
-      // Append any players not returned by the API (shouldn't happen, but safety net)
-      const missing = allPlayerNames.filter(n => !validResolved.includes(n));
+      // Only keep players that are actually in the team
+      const validResolved = ordered.filter(n => names.includes(n));
+      // Append any players not returned by the API (safety net)
+      const missing = names.filter(n => !validResolved.includes(n));
       setBatting([...validResolved, ...missing]);
-    } catch {
-      // If the endpoint fails, keep the draft order as-is
+    } catch (e) {
+      console.error('[OrderSetup] fetchBattingOrder failed:', e);
+      // Keep draft order as-is
     } finally {
       setLoadingBatting(false);
     }
+  // myTeam comes from props and is stable; re-reading inside avoids stale closure
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [myTeam]);
 
   // Auto-fetch both orders on mount
   useEffect(() => {
@@ -367,7 +369,7 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
                   <span className="text-[10px] font-black font-mono w-5 text-center" style={{ color: 'var(--muted)' }}>{i + 1}</span>
                   <GripVertical className="w-4 h-4 flex-shrink-0" style={{ color: submitted || loadingBatting ? 'var(--border)' : 'var(--muted)' }} />
                   <span className="text-sm">{p ? teamFlag([p.team]) : ''}</span>
-                  <span className="flex-1 text-sm font-bold truncate">{name}</span>
+                  <span className="flex-1 text-sm font-bold truncate">{dn(name, cn)}</span>
                   {p?.can_bowl && (
                     <span className="text-[8px] px-1.5 py-0.5 rounded font-black flex-shrink-0"
                       style={{ background: 'rgba(245,166,91,0.15)', color: 'var(--sandy-brown)' }}>BOWL</span>
@@ -396,8 +398,8 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
           ) : (
             <BowlingOrderEditor
               teamName={myDisplayName}
-              players={myTeam.map((p): SlottedPlayer => ({ uid: p.name, name: p.name }))}
-              eligibleBowlers={eligibleNames}
+              players={myTeam.map((p): SlottedPlayer => ({ uid: p.name, name: dn(p.name, cn) }))}
+              eligibleBowlers={eligibleNames.map(n => dn(n, cn))}
               bowlingOrder={bowlingOrder}
               onOrderChange={setBowlingOrder}
               onDefault={handleReset}

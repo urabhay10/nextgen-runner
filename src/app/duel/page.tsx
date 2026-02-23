@@ -319,15 +319,12 @@ export default function DuelPage() {
                 <span className="text-xs font-black" style={{ color: active ? 'var(--sandy-brown)' : 'var(--foreground)' }}>
                   {opt.label}
                 </span>
-                <span className="text-[9px] font-bold" style={{ color: active ? 'var(--sandy-brown)' : 'var(--muted)' }}>
-                  {opt.sub}
-                </span>
               </button>
             );
           })}
         </div>
         <p className="mt-2 text-[10px]" style={{ color: 'var(--muted)' }}>
-          Applied automatically when the match starts. Either player can adjust it during lineup review.
+          Configure before game starts
         </p>
       </div>
 
@@ -402,8 +399,8 @@ export default function DuelPage() {
               <span className="text-[9px] uppercase font-black tracking-widest" style={{ color: 'var(--palm-leaf)' }}>What is 1v1 Duel?</span>
             </div>
             <p className="text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
-              Two players draft a squad of <strong style={{ color: 'var(--foreground)' }}>11 players</strong> each from a shared pool of <strong style={{ color: 'var(--foreground)' }}>30 real T20I cricketers</strong>.
-              Once both squads are set, you arrange your batting order and the AI transformer engine simulates a full T20 match — ball by ball — to determine the winner.
+              Two players draft a squad of <strong style={{ color: 'var(--foreground)' }}>11 players</strong> each by pikcing players one by one from a shared pool of <strong style={{ color: 'var(--foreground)' }}>30 real T20I cricketers</strong>.
+              Once both squads are set, you arrange your batting order and the AI transformer engine simulates a full T20 match, ball-by-ball, to determine the winner.
             </p>
           </div>
 
