@@ -246,6 +246,24 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
     doneRef.current = done;
   }, [done]);
 
+function remapScorecard(scorecard: any, cn: Map<string, string>) {
+  if (!scorecard) return scorecard;
+  const mapped = JSON.parse(JSON.stringify(scorecard));
+  const resolve = (n: string) => cn.get(n) ?? n;
+  for (const team in mapped) {
+    if (mapped[team].batting) {
+      mapped[team].batting.forEach((b: any) => {
+        b.name = resolve(b.name);
+        if (b.out_by) b.out_by = resolve(b.out_by);
+      });
+    }
+    if (mapped[team].bowling) {
+      mapped[team].bowling.forEach((b: any) => b.name = resolve(b.name));
+    }
+  }
+  return mapped;
+}
+
   // ── Derived ───────────────────────────────────────────────────────────────
   // Always show the most recent ball across both innings for the live scorecard
   const latestBall = balls2.length > 0
@@ -255,12 +273,14 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
   const allBalls   = [...balls1, ...balls2];
   // Use scorecard from match_complete event, or fall back to the stored match scorecard.
   // Always sort so the batting-first team appears first.
-  const finalScorecard = resultScorecard ?? match.scorecard ?? null;
+  const baseScorecard = resultScorecard ?? match.scorecard ?? null;
+  const finalScorecard = baseScorecard ? remapScorecard(baseScorecard, commonNamesRef.current) : null;
   const orderedScorecard = finalScorecard && toss
     ? Object.fromEntries(
         Object.entries(finalScorecard).sort(([a]) => (a === toss ? -1 : 1))
       )
     : finalScorecard;
+
 
   return (
     <div className="min-h-screen text-[var(--foreground)] flex" style={{ background: 'var(--background)' }}>
