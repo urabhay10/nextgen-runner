@@ -75,15 +75,15 @@ body {
 }
 
 /* Score table */
-.score-table { table-layout: fixed; width: 100%; }
+.score-table { table-layout: fixed; width: 100%; min-width: 320px; }
 .score-table th {
-  @apply text-[10px] uppercase tracking-wider font-semibold py-3 px-2 border-b;
+  @apply text-[10px] uppercase tracking-wider font-semibold py-2.5 px-2 border-b;
   color: var(--palm-leaf);
   border-color: var(--border);
   background: var(--surface);
 }
 .score-table td {
-  @apply py-2.5 px-2 text-sm border-b;
+  @apply py-2 px-2 text-sm border-b;
   border-color: var(--border);
 }
 .score-table tr:last-child td { border-bottom: none; }

@@ -150,24 +150,24 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
   };
 
   return (
-    <div className="min-h-screen p-6 flex flex-col items-center animate-fade-in max-w-6xl mx-auto w-full">
+    <div className="min-h-screen p-3 sm:p-6 flex flex-col items-center animate-fade-in max-w-6xl mx-auto w-full">
       {/* Header */}
-      <div className="w-full flex justify-between items-center mb-8">
+      <div className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-8 gap-2 sm:gap-0">
         {onBack ? (
-          <button onClick={onBack} className="text-xs font-bold text-[var(--muted)] hover:text-[var(--foreground)] flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--surface)] border border-[var(--border)] transition hover:border-[rgba(var(--border-rgb),0.8)]">
+          <button onClick={onBack} className="text-xs font-bold text-[var(--muted)] hover:text-[var(--foreground)] flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] transition hover:border-[rgba(var(--border-rgb),0.8)]">
             <ArrowLeft className="w-4 h-4" /> BACK TO SIMULATOR
           </button>
         ) : (
-          <Link href="/" className="text-xs font-bold text-[var(--muted)] hover:text-[var(--foreground)] flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--surface)] border border-[var(--border)] transition hover:border-[rgba(var(--border-rgb),0.8)]">
+          <Link href="/" className="text-xs font-bold text-[var(--muted)] hover:text-[var(--foreground)] flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] transition hover:border-[rgba(var(--border-rgb),0.8)]">
             <ArrowLeft className="w-4 h-4" /> BACK TO HOME
           </Link>
         )}
-        <h1 className="text-2xl font-black bg-gradient-to-r from-[var(--sage-green)] to-[var(--sandy-brown)] bg-clip-text text-transparent uppercase tracking-tight">AI Ball Predictor</h1>
+        <h1 className="text-lg sm:text-2xl font-black bg-gradient-to-r from-[var(--sage-green)] to-[var(--sandy-brown)] bg-clip-text text-transparent uppercase tracking-tight">AI Ball Predictor</h1>
       </div>
 
-      <div className="grid md:grid-cols-12 gap-8 w-full">
+      <div className="grid md:grid-cols-12 gap-4 sm:gap-8 w-full min-w-0 overflow-hidden">
         {/* Input Section */}
-        <div className="md:col-span-4 bg-[var(--surface)] p-6 rounded-2xl border border-[var(--border)] shadow-xl space-y-6 h-fit sticky top-6">
+        <div className="md:col-span-4 bg-[var(--surface)] p-4 sm:p-6 rounded-2xl border border-[var(--border)] shadow-xl space-y-4 sm:space-y-6 h-fit md:sticky md:top-6">
           <div className="flex justify-between items-center border-b border-[var(--border)] pb-4">
             <h2 className="font-bold text-[var(--foreground)] flex items-center gap-2"><Sliders className="w-4 h-4 text-[var(--sage-green)]" /> Match State</h2>
           </div>
@@ -264,14 +264,14 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
           >
             {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
             PREDICT OUTCOME
-            <span className="text-xs opacity-70 ml-2">(Ctrl+Enter)</span>
+            <span className="text-xs opacity-70 ml-2 hidden sm:inline">(Ctrl+Enter)</span>
           </button>
         </div>
 
         {/* Result Section */}
-        <div className="md:col-span-8 flex flex-col gap-6">
+        <div className="md:col-span-8 flex flex-col gap-6 min-w-0">
           {results.length > 0 ? (
-            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-xl overflow-hidden w-full">
+            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] shadow-xl overflow-hidden w-full min-w-0">
                <div className="p-6 border-b border-[var(--border)] bg-[rgba(var(--border-rgb),0.3)]">
                  <h2 className="font-bold text-[var(--foreground)] flex items-center gap-2">
                    <BarChart2 className="w-4 h-4 text-[var(--sage-green)]" /> 
@@ -283,7 +283,8 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
                  <table className="w-full text-sm text-left border-collapse">
                    <thead>
                      <tr className="bg-[rgba(var(--background-rgb),0.8)] text-[var(--muted)] uppercase text-xs tracking-wider border-b border-[var(--border)]">
-                       <th className="p-4 rounded-tl-lg font-mono">Model</th>
+                       <th className="p-4 rounded-tl-lg font-mono sticky left-0 z-20"
+                         style={{ background: '#1A1D14', boxShadow: '1px 0 0 rgba(100,100,80,0.4)' }}>Model</th>
                        {["0", "1", "2", "3", "4", "6", "Wicket"].map(o => (
                            <th key={o} className={`p-4 text-center font-bold ${o === 'Wicket' ? 'text-[var(--sandy-brown)]' : o === '6' || o === '4' ? 'text-[var(--sage-green)]' : ''}`}>
                                {o === 'Wicket' ? 'W' : o}
@@ -294,7 +295,10 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
                    <tbody className="divide-y divide-[var(--border)]">
                      {results.map((res, idx) => (
                        <tr key={idx} className="hover:bg-[rgba(var(--border-rgb),0.2)] transition-colors group">
-                         <td className="p-4 font-bold text-[var(--foreground)] border-r border-[rgba(var(--border-rgb),0.5)] whitespace-nowrap bg-[rgba(var(--surface-rgb),0.5)] group-hover:bg-[rgba(var(--border-rgb),0.3)] sticky left-0 z-10 min-w-[140px]">
+                         <td className="p-4 font-bold text-[var(--foreground)] whitespace-nowrap sticky left-0 z-10 min-w-[140px] transition-colors"
+                           style={{ background: '#1A1D14', boxShadow: '1px 0 0 rgba(100,100,80,0.4)' }}
+                           onMouseEnter={e => (e.currentTarget.style.background = '#22261A')}
+                           onMouseLeave={e => (e.currentTarget.style.background = '#1A1D14')}>
                            {res.modelName}
                          </td>
                          {["0", "1", "2", "3", "4", "6", "Wicket"].map((outcome) => {
@@ -330,7 +334,7 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
                </div>
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-[var(--muted)] bg-[rgba(var(--surface-rgb),0.3)] rounded-2xl border border-[rgba(var(--border-rgb),0.5)] border-dashed min-h-[400px]">
+            <div className="h-full flex flex-col items-center justify-center text-[var(--muted)] bg-[rgba(var(--surface-rgb),0.3)] rounded-2xl border border-[rgba(var(--border-rgb),0.5)] border-dashed min-h-[200px] sm:min-h-[400px]">
               <BarChart2 className="w-16 h-16 mb-4 opacity-50 stroke-1" />
               <p className="text-lg font-medium">Enter match details & predict</p>
               <p className="text-sm opacity-70">Compare probabilities across all models instantly</p>

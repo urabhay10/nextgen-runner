@@ -11,9 +11,8 @@ import ballPred    from '@/images/ball_pred.png';
 import modelComp   from '@/images/model_comp.png';
 import playerStats from '@/images/player_stats.png';
 
-const CARD_W = 320;
+const CARD_W_DESKTOP = 320;
 const GAP    = 24;
-const STEP   = CARD_W + GAP; // 344px per slot
 
 const CARDS = [
 	{
@@ -67,12 +66,27 @@ function cardAt(pos: number) {
 
 export default function Home() {
 	// `center` is an unbounded integer — no wrapping, ever.
-	// This means each card DOM node is always at a stable absolute position,
-	// so CSS transitions fire correctly on every navigation including entries.
 	const [center, setCenter] = useState(0);
 	const [isDragging, setIsDragging] = useState(false);
 	const startXRef = useRef(0);
 	const router = useRouter();
+
+	// Responsive card width: full-ish on mobile, fixed on desktop
+	const [cardW, setCardW] = useState(CARD_W_DESKTOP);
+	const [stepW, setStepW] = useState(CARD_W_DESKTOP + GAP);
+	useEffect(() => {
+		const update = () => {
+			const vw = window.innerWidth;
+			// On small screens use viewport width minus arrow buttons (40px each + margins)
+			// Subtract a bit extra so the 1.04 scale on the active card never clips against overflow
+			const w = vw < 560 ? Math.min(vw - 104, CARD_W_DESKTOP) : CARD_W_DESKTOP;
+			setCardW(w);
+			setStepW(w + GAP);
+		};
+		update();
+		window.addEventListener('resize', update);
+		return () => window.removeEventListener('resize', update);
+	}, []);
 
 	const prev = useCallback(() => setCenter(c => c - 1), []);
 	const next = useCallback(() => setCenter(c => c + 1), []);
@@ -126,14 +140,14 @@ export default function Home() {
 			className="h-screen flex flex-col overflow-hidden"
 			style={{ background: 'var(--background)', color: 'var(--foreground)' }}
 		>
-			<div className="flex-1 flex flex-col items-center justify-center px-6 py-8 w-full overflow-hidden">
-				<p className="text-xs font-black uppercase tracking-[0.4em] mb-6" style={{ color: 'var(--palm-leaf)' }}>
+			<div className="flex-1 flex flex-col items-center justify-center py-4 sm:py-8 px-4 sm:px-6 w-full overflow-hidden">
+				<p className="text-xs font-black uppercase tracking-[0.4em] mb-2 sm:mb-6" style={{ color: 'var(--palm-leaf)' }}>
 					AI-Powered Cricket Engine
 				</p>
-				<h1 className="text-5xl md:text-7xl font-black tracking-tighter text-center leading-none mb-4 text-[var(--foreground)]">
+				<h1 className="text-3xl sm:text-5xl md:text-7xl font-black tracking-tighter text-center leading-none mb-1 sm:mb-4 text-[var(--foreground)]">
 					NEXTGEN<br />CRICKET
 				</h1>
-				<p className="text-center text-sm max-w-md mb-16" style={{ color: 'var(--muted)' }}>
+				<p className="text-center text-xs sm:text-sm max-w-md mb-4 sm:mb-10 md:mb-16" style={{ color: 'var(--muted)' }}>
 					Transformer-based neural network simulation. Ball-by-ball T20I predictions and full match analytics.
 				</p>
 
@@ -142,15 +156,15 @@ export default function Home() {
 					{/* Arrow: left */}
 					<button
 						onClick={prev}
-						className="absolute left-0 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center border z-20 transition hover:scale-110"
+						className="absolute left-0 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border z-20 transition hover:scale-110"
 						style={{ background: 'var(--surface-2)', borderColor: 'var(--sage-green)', color: 'var(--sage-green)' }}
 					>
-						<ChevronLeft className="w-5 h-5" />
+						<ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
 					</button>
 
-					{/* Viewport */}
+					{/* Viewport — no overflow-hidden so active card's glow/border is fully visible */}
 					<div
-						className="mx-14 h-[400px] relative overflow-hidden cursor-grab active:cursor-grabbing"
+						className="mx-10 sm:mx-14 h-[310px] sm:h-[360px] md:h-[420px] relative cursor-grab active:cursor-grabbing"
 						onTouchStart={handleDragStart}
 						onTouchEnd={handleDragEnd}
 						onMouseDown={handleDragStart}
@@ -161,7 +175,10 @@ export default function Home() {
 						{slots.map(absPos => {
 							const offset   = absPos - center;   // -2, -1, 0, +1, +2
 							const isActive = offset === 0;
-							const visible  = Math.abs(offset) <= 1;
+							// On narrow screens hide ±1 cards entirely so they don't bleed out
+							const isMobileHidden = Math.abs(offset) >= 1 && cardW < CARD_W_DESKTOP;
+							const visible  = Math.abs(offset) <= 1 && !isMobileHidden;
+							const hidden   = !visible; // fully hide via visibility so they can't affect layout/overflow
 							const card     = cardAt(absPos);
 
 							return (
@@ -171,20 +188,18 @@ export default function Home() {
 									onClick={e => { if (!isActive) { e.preventDefault(); setCenter(absPos); } }}
 									className="absolute rounded-2xl overflow-hidden flex flex-col select-none"
 									style={{
-										width: CARD_W,
+										width: cardW,
 										height: '88%',
 										top: '50%',
 										left: '50%',
-										// All movement — including entries — uses the same smooth transition.
-										// Because keys are stable absolute positions, the browser always has
-										// a previous transform to animate FROM, so entries slide in naturally.
-										transform: `translate(calc(-50% + ${offset * STEP}px), -50%) scale(${isActive ? 1.04 : 0.91})`,
+										transform: `translate(calc(-50% + ${offset * stepW}px), -50%) scale(${isActive ? 1.04 : 0.91})`,
 										transition: 'transform 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.5s ease, box-shadow 0.5s, border-color 0.5s',
 										background: 'var(--surface)',
 										border: `1px solid ${isActive ? 'var(--sandy-brown)' : visible ? 'rgba(var(--sage-green-rgb),0.4)' : 'var(--border)'}`,
 										boxShadow: isActive ? '0 0 48px rgba(var(--sandy-brown-rgb),0.3), 0 8px 32px rgba(0,0,0,0.4)' : 'none',
 										opacity: isActive ? 1 : visible ? 0.42 : 0,
-										pointerEvents: visible ? 'auto' : 'none',
+										visibility: hidden ? 'hidden' : 'visible',
+										pointerEvents: (isActive || visible) ? 'auto' : 'none',
 										zIndex: isActive ? 10 : 5 - Math.abs(offset),
 									}}
 								>
@@ -194,7 +209,7 @@ export default function Home() {
 										style={{ background: isActive ? 'linear-gradient(to right,var(--sandy-brown),transparent)' : 'linear-gradient(to right,var(--sage-green),transparent)' }}
 									/>
 
-									<div className="p-8 flex flex-col gap-4 flex-1">
+									<div className="p-5 sm:p-8 flex flex-col gap-3 sm:gap-4 flex-1">
 										{/* Number tag */}
 										<span className="text-[10px] font-black tracking-[0.3em] uppercase" style={{ color: 'var(--palm-leaf)' }}>
 											{card.tag}
@@ -204,15 +219,15 @@ export default function Home() {
 										<Image
 											src={card.img}
 											alt={card.title}
-											width={120}
-											height={120}
-											className="object-contain"
+											width={100}
+											height={100}
+											className="object-contain sm:w-[120px] sm:h-[120px]"
 											style={{ filter: isActive ? 'none' : 'grayscale(20%) opacity(0.75)' }}
 										/>
 
 										{/* Title + subtitle */}
 										<div>
-											<h2 className="text-2xl font-black tracking-tight mb-2 flex items-center gap-2 flex-wrap">
+											<h2 className="text-xl sm:text-2xl font-black tracking-tight mb-2 flex items-center gap-2 flex-wrap">
 												{card.title}
 												{card.href === '/duel' && (
 													<span className="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded align-middle"
@@ -239,10 +254,10 @@ export default function Home() {
 					{/* Arrow: right */}
 					<button
 						onClick={next}
-						className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center border z-20 transition hover:scale-110"
+						className="absolute right-0 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border z-20 transition hover:scale-110"
 						style={{ background: 'var(--surface-2)', borderColor: 'var(--sage-green)', color: 'var(--sage-green)' }}
 					>
-						<ChevronRight className="w-5 h-5" />
+						<ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
 					</button>
 				</div>
 			</div>

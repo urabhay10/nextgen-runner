@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, Swords, ArrowLeft, Zap } from 'lucide-react';
+import { Loader2, Swords, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { getApiUrl } from '@/lib/api';
 import { fetchCommonNames } from '@/lib/commonNames';
 import { supabase } from '@/lib/supabase';
 import ScoreCardLive from './ScoreCardLive';
 import Commentary from './Commentary';
-import DetailedScorecard from './DetailedScorecard';
+import DuelResults from './DuelResults';
 import { BallEvent, MatchDetail } from '@/types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -45,12 +45,35 @@ function toBallEvent(ev: any, innings: number): BallEvent {
   };
 }
 
-// ── Speed config ──────────────────────────────────────────────────────────────
-type SimSpeed = 'slow' | 'moderate' | 'max';
-const SPEED_DELAY: Record<SimSpeed, number> = { slow: 2000, moderate: 500, max: 0 };
+// ── Natural speed config ──────────────────────────────────────────────────────
+/** Base inter-ball delay (ms) — outcome and over multipliers are applied on top. */
+const NATURAL_BASE_MS = 600;
 
-function getDelayMs(match: any): number {
-  return SPEED_DELAY[(match?.sim_speed as SimSpeed) ?? 'moderate'] ?? 500;
+/**
+ * Compute natural delay for the ball that was just played.
+ * @param over    0-indexed over (0-19)
+ * @param outcome Runs scored, or 'W' for wicket
+ */
+function naturalDelay(over: number, outcome: number | string): number {
+  const ballMult =
+    outcome === 'W' ? 3.0
+    : outcome === 6  ? 2.0
+    : outcome === 4  ? 1.5
+    : outcome === 2  ? 1.25
+    : outcome === 1  ? 1.05
+    : 1.0;
+  // Overs 16-19: tension ramps from 1.1× up to 1.4×
+  const overMult = over <= 15 ? 1.0 : 1 + (over - 15) / 10;
+  return Math.round(NATURAL_BASE_MS * ballMult * overMult);
+}
+
+/** Derive delay from a raw event row (non-ball events get the base delay). */
+function delayForRow(row: RawEventRow): number {
+  const ev = row.event;
+  if (ev.type !== 'ball') return NATURAL_BASE_MS;
+  const outcome = ev.is_wicket ? 'W' : (ev.runs_scored ?? 0);
+  const over    = ev.over ?? 0;
+  return naturalDelay(over, outcome);
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -65,6 +88,7 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
   const [balls2, setBalls2]   = useState<BallEvent[]>([]);
   const [toss, setToss]       = useState<string | null>(null);
   const [resultScorecard, setResultScorecard] = useState<any>(null);
+  const [resultData, setResultData]           = useState<any>(null);
   const [done, setDone]       = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -73,6 +97,9 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
   const onCompleteRef  = useRef(onComplete);
   const doneRef        = useRef(false);
   const triggeredRef   = useRef(false);   // have we POSTed /simulate yet?
+  // pendingDone: match_complete event was received; waiting for queue to drain
+  const pendingDoneRef   = useRef(false);
+  const pendingResultRef = useRef<{ result: any; scorecard: any } | null>(null);
   onCompleteRef.current = onComplete;
 
   // ── Common names map (display-only) ──────────────────────────────────
@@ -91,29 +118,50 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
 
   // ── Event queue + timed drain ─────────────────────────────────────────────
   // All incoming rows are pushed onto this queue; the drain loop pops one per
-  // delayMs so the display speed is governed by match.sim_speed.
+  // FIXED_DELAY_MS so playback speed is consistent.
   const queueRef      = useRef<RawEventRow[]>([]);
   const drainingRef   = useRef(false);
-  const delayMs       = getDelayMs(match);
+  // fetchEventsRef — filled in after fetchEvents is defined (avoids circular deps)
+  const fetchEventsRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const drainQueue = useCallback(() => {
     if (drainingRef.current) return;
     drainingRef.current = true;
 
-    const step = () => {
+    const step = async () => {
       const row = queueRef.current.shift();
-      if (!row) { drainingRef.current = false; return; }
-      // applyRow defined below via ref
-      applyRowRef.current(row);
-      if (delayMs === 0) {
-        // drain synchronously — microtask to avoid stack overflow on large batches
-        Promise.resolve().then(step);
-      } else {
-        setTimeout(step, delayMs);
+      if (!row) {
+        // Queue is empty.
+        if (pendingDoneRef.current) {
+          // match_complete was received but we must ensure all preceding ball
+          // events have been fetched (they might still be in-flight from the
+          // server).  Do one final fetch before declaring the match over.
+          await fetchEventsRef.current();
+          if (queueRef.current.length > 0) {
+            // More events arrived — keep draining them first.
+            setTimeout(step, NATURAL_BASE_MS);
+            return;
+          }
+          // All events processed — now mark the match as done.
+          drainingRef.current  = false;
+          pendingDoneRef.current = false;
+          doneRef.current      = true;
+          setDone(true);
+          setLoading(false);
+          const r = pendingResultRef.current;
+          if (r) onCompleteRef.current(r.result, r.scorecard);
+        } else {
+          drainingRef.current = false;
+        }
+        return;
       }
+      applyRowRef.current(row);
+      // Use natural delay based on what just happened
+      setTimeout(step, delayForRow(row));
     };
     step();
-  }, [delayMs]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ref so applyRow can be defined after drainQueue without circular deps
   const applyRowRef = useRef<(row: RawEventRow) => void>(() => {});
@@ -153,11 +201,14 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
       return;
     }
     if (ev.type === 'match_complete') {
-      doneRef.current = true;
-      setDone(true);
       setLoading(false);
       if (ev.scorecard) setResultScorecard(ev.scorecard);
-      onCompleteRef.current(ev.result, ev.scorecard);
+      if (ev.result)    setResultData(ev.result);
+      // Don't fire setDone() here — wait until the drain queue is empty so
+      // all 2nd-innings ball events are displayed before results appear.
+      pendingDoneRef.current  = true;
+      pendingResultRef.current = { result: ev.result, scorecard: ev.scorecard };
+      // onCompleteRef is called by the drain loop once the queue empties.
     }
   }, []);
 
@@ -176,6 +227,10 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
       // ignore network errors; will retry
     }
   }, [match.id, processRow]);
+
+  // Keep fetchEventsRef up-to-date so drainQueue can call it without a
+  // stale closure or a circular dependency.
+  fetchEventsRef.current = fetchEvents;
 
   // ── Auto-trigger stuck simulation (call /simulate if no events after delay) ─
   const triggerSimulation = useCallback(async () => {
@@ -246,24 +301,6 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
     doneRef.current = done;
   }, [done]);
 
-function remapScorecard(scorecard: any, cn: Map<string, string>) {
-  if (!scorecard) return scorecard;
-  const mapped = JSON.parse(JSON.stringify(scorecard));
-  const resolve = (n: string) => cn.get(n) ?? n;
-  for (const team in mapped) {
-    if (mapped[team].batting) {
-      mapped[team].batting.forEach((b: any) => {
-        b.name = resolve(b.name);
-        if (b.out_by) b.out_by = resolve(b.out_by);
-      });
-    }
-    if (mapped[team].bowling) {
-      mapped[team].bowling.forEach((b: any) => b.name = resolve(b.name));
-    }
-  }
-  return mapped;
-}
-
   // ── Derived ───────────────────────────────────────────────────────────────
   // Always show the most recent ball across both innings for the live scorecard
   const latestBall = balls2.length > 0
@@ -271,70 +308,74 @@ function remapScorecard(scorecard: any, cn: Map<string, string>) {
     : balls1.length > 0 ? balls1[balls1.length - 1] : null;
   const liveDetail = latestBall as unknown as MatchDetail | null;
   const allBalls   = [...balls1, ...balls2];
-  // Use scorecard from match_complete event, or fall back to the stored match scorecard.
-  // Always sort so the batting-first team appears first.
-  const baseScorecard = resultScorecard ?? match.scorecard ?? null;
-  const finalScorecard = baseScorecard ? remapScorecard(baseScorecard, commonNamesRef.current) : null;
-  const orderedScorecard = finalScorecard && toss
-    ? Object.fromEntries(
-        Object.entries(finalScorecard).sort(([a]) => (a === toss ? -1 : 1))
-      )
-    : finalScorecard;
+  const finalScorecard = resultScorecard ?? null;
 
+  // ── Ref for the results section (auto-scroll target) ──────────────────────
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to results when simulation finishes
+  useEffect(() => {
+    if (!done) return;
+    const timer = setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 600); // small delay so the element renders first
+    return () => clearTimeout(timer);
+  }, [done]);
+
+  // Build the result object from the match_complete event for DuelResults
+  const inlineResult = resultData ?? match.result ?? null;
 
   return (
     <div className="min-h-screen text-[var(--foreground)] flex" style={{ background: 'var(--background)' }}>
 
-      {/* ── Left control sidebar — matches /simulate exactly ──────────────── */}
-      <div className="w-14 bg-[var(--surface)] border-r border-[var(--border)] flex flex-col items-center py-4 gap-3 z-50 fixed left-0 h-full">
+      {/* ── Control strip — sidebar on desktop, bottom bar on mobile ───────── */}
+      <div className="
+        fixed z-50 bg-[var(--surface)] border-[var(--border)]
+        bottom-0 left-0 right-0 h-12 border-t flex-row
+        md:bottom-auto md:left-0 md:top-0 md:right-auto md:w-14 md:h-full md:border-t-0 md:border-r md:flex-col md:py-4 md:gap-3
+        flex items-center justify-around md:justify-start px-4 md:px-0
+      ">
         <Link href="/duel" className="p-2.5 rounded-xl hover:bg-[var(--surface-2)] text-[var(--muted)] transition" title="Back to Duel">
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        <div className="w-8 border-t border-[var(--border)]" />
-        <Swords className="w-4 h-4 mt-1" style={{ color: done ? 'var(--sage-green)' : 'var(--sandy-brown)' }} />
-        {/* Speed indicator */}
-        <div className="flex flex-col items-center gap-0.5 mt-1" title={`Speed: ${match.sim_speed ?? 'moderate'}`}>
-          <Zap className="w-3.5 h-3.5" style={{ color: 'var(--palm-leaf)' }} />
-          <span className="text-[8px] font-black uppercase" style={{ color: 'var(--muted)' }}>
-            {match.sim_speed === 'slow' ? '0.5×' : match.sim_speed === 'max' ? 'MAX' : '2×'}
-          </span>
-        </div>
+        <div className="hidden md:block w-8 border-t border-[var(--border)]" />
+        <Swords className="w-4 h-4 md:mt-1" style={{ color: done ? 'var(--sage-green)' : 'var(--sandy-brown)' }} />
         {!done && (
-          <div className="mt-auto mb-2">
+          <div className="md:mt-auto md:mb-2">
             <span className="w-2 h-2 rounded-full block bg-[var(--sandy-brown)] animate-pulse" />
           </div>
         )}
       </div>
 
-      {/* ── Main content — ml-14 + full-width grid, same as /simulate ─────── */}
-      <div className="flex-1 ml-14 p-4 md:p-8 max-w-[1600px] mx-auto w-full">
+      {/* ── Main content ──────────────────────────────────────────────────── */}
+      <div className="flex-1 md:ml-14 pb-14 md:pb-0 p-3 md:p-6 max-w-[1600px] mx-auto w-full overflow-y-auto">
 
         {/* Header */}
-        <header className="mb-6 flex justify-between items-center bg-[rgba(var(--surface-rgb),0.5)] p-4 rounded-xl border border-[rgba(var(--border-rgb),0.5)] backdrop-blur">
+        <header className="mb-4 md:mb-6 flex justify-between items-center bg-[rgba(var(--surface-rgb),0.5)] p-3 md:p-4 rounded-xl border border-[rgba(var(--border-rgb),0.5)] backdrop-blur">
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               {!done && <div className="w-2 h-2 rounded-full bg-[var(--sandy-brown)] animate-pulse" />}
-              <h1 className="text-xl font-black italic tracking-tighter text-[var(--foreground)]">
+              <h1 className="text-base md:text-xl font-black italic tracking-tighter text-[var(--foreground)]">
                 {done ? 'MATCH COMPLETE' : spectator ? 'LIVE DUEL — SPECTATING' : 'LIVE DUEL'}
               </h1>
             </div>
-            <div className="flex gap-3 text-xs font-mono text-[var(--muted)] mt-1 pl-5">
+            <div className="flex flex-wrap gap-2 md:gap-3 text-xs font-mono text-[var(--muted)] mt-1 pl-5">
               <span>{myName} <span style={{ color: 'var(--sandy-brown)' }}>vs</span> {oppName}</span>
               {toss && <><span>•</span><span>🪙 {toss} bats first</span></>}
             </div>
           </div>
           {done && (
-            <div className="text-[var(--sage-green)] font-bold text-sm bg-[rgba(var(--sage-green-rgb),0.1)] px-3 py-1 rounded-full border border-[rgba(var(--sage-green-rgb),0.2)]">
-              SERIES COMPLETE
+            <div className="text-[var(--sage-green)] font-bold text-xs md:text-sm bg-[rgba(var(--sage-green-rgb),0.1)] px-2 md:px-3 py-1 rounded-full border border-[rgba(var(--sage-green-rgb),0.2)]">
+              COMPLETE
             </div>
           )}
         </header>
 
-        {/* ── 4-col grid, identical to /simulate ────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-140px)]">
+        {/* ── Live grid: scorecard (left/top) + commentary (right/bottom) ──── */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:h-[calc(100vh-140px)]">
 
           {/* Scorecard column — lg:col-span-3 */}
-          <div className="lg:col-span-3 flex flex-col gap-6 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--border)] pr-2">
+          <div className="lg:col-span-3 flex flex-col gap-6 lg:h-full lg:overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--border)] lg:pr-2">
 
             {loading && !done && (
               <div className="flex flex-col items-center justify-center gap-3 py-24">
@@ -343,53 +384,43 @@ function remapScorecard(scorecard: any, cn: Map<string, string>) {
               </div>
             )}
 
-            {/* Live ScoreCard */}
+            {/* Live ScoreCard — stays visible even after done */}
             {liveDetail && (
               <div className="flex-none">
                 <ScoreCardLive detail={liveDetail} live={!done} />
               </div>
             )}
 
-            {/* Final scorecard — same layout as /simulate match history */}
-            {done && finalScorecard && (
-              <div className="bg-[rgba(var(--surface-rgb),0.5)] border border-[var(--border)] rounded-xl overflow-hidden">
-                <div className="bg-[var(--surface)] px-4 py-3 border-b border-[var(--border)] flex justify-between items-center">
-                  <span className="text-sm font-bold text-[var(--muted)]">MATCH SCORECARD</span>
-                  {match.result && (
-                    <span className="text-sm font-bold text-[var(--sage-green)] bg-[rgba(var(--sage-green-rgb),0.1)] px-3 py-1 rounded-full border border-[rgba(var(--sage-green-rgb),0.2)]">
-                      {match.result.winner} won by {match.result.margin}
-                    </span>
-                  )}
-                </div>
-                <div className="p-4 grid lg:grid-cols-2 gap-6 bg-[rgba(var(--surface-rgb),0.5)]">
-                  {Object.entries(orderedScorecard ?? finalScorecard).map(([teamName, sc]: [string, any]) => (
-                    <DetailedScorecard key={teamName} teamName={teamName} data={sc} />
-                  ))}
-                </div>
-              </div>
-            )}
-
+            {/* Waiting for scorecard after done */}
             {done && !finalScorecard && (
               <div className="flex items-center justify-center gap-2 py-8">
                 <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--sage-green)' }} />
-                <span className="text-sm" style={{ color: 'var(--muted)' }}>Loading final scorecard…</span>
+                <span className="text-sm" style={{ color: 'var(--muted)' }}>Loading final results…</span>
               </div>
             )}
           </div>
 
-          {/* Commentary column — right sidebar, same as /simulate */}
-          <div className="flex flex-col gap-3 h-full min-h-0">
+          {/* Commentary column — fixed height on mobile, full height on desktop */}
+          <div className="flex flex-col gap-3 h-72 lg:h-full lg:min-h-0">
             <div className="bg-[rgba(var(--surface-rgb),0.5)] border border-[var(--border)] rounded-xl overflow-hidden flex flex-col h-full">
-              <div className="p-3 border-b border-[var(--border)] bg-[rgba(var(--surface-rgb),0.8)] backdrop-blur flex-none">
-                <h3 className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest">Commentary</h3>
-              </div>
               <div className="flex-1 overflow-y-auto min-h-0">
                 <Commentary events={allBalls} />
               </div>
             </div>
           </div>
-
         </div>
+
+        {/* ── Inline Results — rendered below the live grid when done ──────── */}
+        {done && finalScorecard && inlineResult && (
+          <div ref={resultsRef} className="mt-10 mb-10">
+            <DuelResults
+              match={match}
+              myUserId={spectator ? '' : myUserId}
+              result={inlineResult}
+              scorecard={finalScorecard}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

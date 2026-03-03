@@ -57,6 +57,7 @@ export interface ScorecardData {
 }
 
 export interface HistoryItem {
+  match_no?: number;
   winner: string;
   margin: string;
   scorecard: Record<string, ScorecardData>;
@@ -96,4 +97,9 @@ export interface SlottedPlayer {
   /** Stable slot identifier, e.g. "t1_0", "t1_1". Never changes even when the name changes. */
   uid: string;
   name: string;
+  /**
+   * Unique game-scoped integer ID (0–21). Team 1 slots get IDs 0–10, team 2 slots get 11–21.
+   * Used instead of player name as the key in playerIdMap so duplicate names are handled correctly.
+   */
+  gameId: number;
 }

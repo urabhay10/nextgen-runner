@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Loader2, GripVertical, Clock, Check, AlertCircle } from 'lucide-react';
+import { Loader2, GripVertical, Clock, Check, AlertCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import { teamFlag } from '@/lib/flags';
 import { getApiUrl, generateBattingOrder } from '@/lib/api';
 import { useCommonNames, dn } from '@/lib/commonNames';
@@ -221,6 +221,16 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
   const dragIdx = useRef<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
+  const moveBatter = useCallback((from: number, to: number) => {
+    if (submitted) return;
+    setBatting(prev => {
+      const arr = [...prev];
+      const [item] = arr.splice(from, 1);
+      arr.splice(to, 0, item);
+      return arr;
+    });
+  }, [submitted]);
+
   const onDragStart = (i: number) => { dragIdx.current = i; };
   const onDragEnter = (i: number) => { setDragOver(i); };
   const onDragEnd   = () => { dragIdx.current = null; setDragOver(null); };
@@ -228,12 +238,7 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
     if (submitted) return;
     const fromIdx = dragIdx.current;
     if (fromIdx === null || fromIdx === toIdx) return;
-    setBatting(prev => {
-      const arr = [...prev];
-      const [item] = arr.splice(fromIdx, 1);
-      arr.splice(toIdx, 0, item);
-      return arr;
-    });
+    moveBatter(fromIdx, toIdx);
     dragIdx.current = null;
     setDragOver(null);
   };
@@ -243,7 +248,7 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
   const timerPct   = Math.min(100, (secsNum / 90) * 100);
 
   return (
-    <div className="min-h-screen px-4 py-6 max-w-2xl mx-auto" style={{ color: 'var(--foreground)' }}>
+    <div className="min-h-screen px-3 sm:px-4 py-5 sm:py-6 max-w-2xl mx-auto" style={{ color: 'var(--foreground)' }}>
       {/* Header */}
       <div className="rounded-2xl p-4 mb-5 flex items-center justify-between gap-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div>
@@ -349,10 +354,11 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
             {batting.map((name, i) => {
               const p = myTeam.find(pl => pl.name === name);
               const isDragTarget = dragOver === i;
+              const canMove = !submitted && !loadingBatting;
               return (
                 <div
                   key={name}
-                  draggable={!submitted && !loadingBatting}
+                  draggable={canMove}
                   onDragStart={() => onDragStart(i)}
                   onDragEnter={() => onDragEnter(i)}
                   onDragOver={e => e.preventDefault()}
@@ -362,18 +368,39 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
                   style={{
                     background: isDragTarget ? 'rgba(108,174,117,0.1)' : 'var(--surface-2)',
                     border: `1px solid ${isDragTarget ? 'var(--sage-green)' : 'var(--border)'}`,
-                    cursor: submitted || loadingBatting ? 'default' : 'grab',
+                    cursor: canMove ? 'grab' : 'default',
                     opacity: loadingBatting ? 0.5 : dragIdx.current === i ? 0.5 : 1,
                   }}
                 >
                   <span className="text-[10px] font-black font-mono w-5 text-center" style={{ color: 'var(--muted)' }}>{i + 1}</span>
-                  <GripVertical className="w-4 h-4 flex-shrink-0" style={{ color: submitted || loadingBatting ? 'var(--border)' : 'var(--muted)' }} />
+                  <GripVertical className="w-4 h-4 flex-shrink-0 hidden sm:block" style={{ color: canMove ? 'var(--muted)' : 'var(--border)' }} />
                   <span className="text-sm">{p ? teamFlag([p.team]) : ''}</span>
                   <span className="flex-1 text-sm font-bold truncate">{dn(name, cn)}</span>
                   {p?.can_bowl && (
                     <span className="text-[8px] px-1.5 py-0.5 rounded font-black flex-shrink-0"
                       style={{ background: 'rgba(245,166,91,0.15)', color: 'var(--sandy-brown)' }}>BOWL</span>
                   )}
+                  {/* Touch-friendly move buttons — visible on mobile, hidden on desktop */}
+                  <div className="sm:hidden flex flex-col -my-1 flex-shrink-0">
+                    <button
+                      disabled={!canMove || i === 0}
+                      onClick={() => moveBatter(i, i - 1)}
+                      className="p-0.5 rounded transition-opacity disabled:opacity-20"
+                      style={{ color: 'var(--muted)' }}
+                      aria-label="Move up"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      disabled={!canMove || i === batting.length - 1}
+                      onClick={() => moveBatter(i, i + 1)}
+                      className="p-0.5 rounded transition-opacity disabled:opacity-20"
+                      style={{ color: 'var(--muted)' }}
+                      aria-label="Move down"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               );
             })}

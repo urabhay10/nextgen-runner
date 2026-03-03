@@ -167,6 +167,10 @@ function PoolCard({ p, taken, isMyTurn, picking, onClick, stats, cn }: PoolCardP
 export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
   const [picking, setPicking]         = useState(false);
   const [pickError, setPickError]     = useState<string | null>(null);
+  // 'none' | 'mine' | 'opp'  — which mobile team panel is open
+  const [mobilePanel, setMobilePanel] = useState<'none' | 'mine' | 'opp'>('none');
+  const togglePanel = (panel: 'mine' | 'opp') =>
+    setMobilePanel(prev => (prev === panel ? 'none' : panel));
   const [autoPickEnabled, setAutoPick] = useState<boolean>(() =>
     typeof window !== 'undefined' && localStorage.getItem('duel_auto_pick') === 'true'
   );
@@ -311,7 +315,7 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
       style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
 
       {/* ── Top bar ──────────────────────────────────────────────────── */}
-      <div className="flex-none flex items-center gap-3 px-4 py-2.5 border-b z-10"
+      <div className="flex-none flex items-center gap-2 md:gap-3 px-2 md:px-4 py-2 md:py-2.5 border-b z-10"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
 {/* Home link — far left */}
         <Link href="/"
@@ -319,11 +323,12 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
           style={{ color: 'var(--muted)', border: '1px solid var(--border)' }}
           title="Back to home">
           <Home className="w-3 h-3" />
-          Home
+          <span className="hidden sm:inline">Home</span>
         </Link>
-        {/* My team label */}
-        <div className="w-44 flex-shrink-0">
-          <div className="text-[9px] uppercase font-black tracking-widest" style={{ color: 'var(--sage-green)' }}>
+
+        {/* My team label — desktop */}
+        <div className="hidden sm:block w-44 flex-shrink-0">
+          <div className="text-[9px] uppercase font-black tracking-widest truncate" style={{ color: 'var(--sage-green)' }}>
             {myName} <span style={{ color: 'var(--muted)' }}>(You)</span>
           </div>
           <div className="text-xs font-bold" style={{ color: 'var(--muted)' }}>
@@ -331,29 +336,58 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
           </div>
         </div>
 
+        {/* Mobile: My XI / Opp XI toggle buttons */}
+        <div className="sm:hidden flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={() => togglePanel('mine')}
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+            style={{
+              background: mobilePanel === 'mine' ? 'rgba(108,174,117,0.15)' : 'var(--surface-2)',
+              color: mobilePanel === 'mine' ? 'var(--sage-green)' : 'var(--muted)',
+              border: `1px solid ${mobilePanel === 'mine' ? 'rgba(108,174,117,0.4)' : 'var(--border)'}`,
+            }}
+          >
+            🏏 {myTeam.length}/11
+          </button>
+          <button
+            onClick={() => togglePanel('opp')}
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+            style={{
+              background: mobilePanel === 'opp' ? 'rgba(245,166,91,0.15)' : 'var(--surface-2)',
+              color: mobilePanel === 'opp' ? 'var(--sandy-brown)' : 'var(--muted)',
+              border: `1px solid ${mobilePanel === 'opp' ? 'rgba(245,166,91,0.4)' : 'var(--border)'}`,
+            }}
+          >
+            ⚔️ {oppTeam.length}/11
+          </button>
+        </div>
+
         {/* Center info */}
-        <div className="flex-1 flex items-center justify-center gap-5">
-          <div className="text-center">
-            <div className="text-[9px] uppercase font-black tracking-widest mb-0.5" style={{ color: 'var(--palm-leaf)' }}>
+        <div className="flex-1 flex items-center justify-center gap-2 md:gap-5 min-w-0">
+          <div className="text-center flex-shrink-0">
+            <div className="text-[8px] md:text-[9px] uppercase font-black tracking-widest mb-0.5" style={{ color: 'var(--palm-leaf)' }}>
               Draft
             </div>
-            <div className="text-sm font-black leading-none">
+            <div className="text-xs md:text-sm font-black leading-none">
               {isMyTurn
                 ? <span style={{ color: 'var(--sage-green)' }}>Your pick! 🏏</span>
-                : <span style={{ color: 'var(--muted)' }}>{pickerName} is choosing…</span>}
+                : <span style={{ color: 'var(--muted)' }}>
+                    <span className="hidden sm:inline">{pickerName} choosing…</span>
+                    <span className="sm:hidden">Waiting…</span>
+                  </span>}
             </div>
           </div>
 
           {/* Progress */}
-          <div className="flex flex-col items-center gap-0.5">
+          <div className="hidden sm:flex flex-col items-center gap-0.5 flex-shrink-0">
             <span className="text-xs font-black font-mono">{pickNum} / {totalPicks}</span>
-            <div className="w-28 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+            <div className="w-20 md:w-28 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
               <div className="h-full rounded-full transition-all" style={{ width: `${progressPct}%`, background: 'var(--sage-green)' }} />
             </div>
           </div>
 
           {/* Timer ring */}
-          <div className="relative w-10 h-10 flex-shrink-0">
+          <div className="relative w-8 h-8 md:w-10 md:h-10 flex-shrink-0">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
               <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--border)" strokeWidth="3.5" />
               <circle cx="18" cy="18" r="15.9" fill="none" stroke={timerColor} strokeWidth="3.5"
@@ -361,12 +395,12 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
                 style={{ transition: 'stroke-dasharray 0.5s linear, stroke 0.3s' }}
                 strokeLinecap="round" />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black font-mono"
+            <span className="absolute inset-0 flex items-center justify-center text-[9px] md:text-[10px] font-black font-mono"
               style={{ color: timerColor }}>{secsLeft}</span>
           </div>
 
-          {/* Auto-pick toggle — always visible, click to enable/disable */}
-          <div className="flex flex-col items-center gap-0.5">
+          {/* Auto-pick toggle — hidden on mobile to save space */}
+          <div className="hidden md:flex flex-col items-center gap-0.5 flex-shrink-0">
             <button
               onClick={toggleAutoPick}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
@@ -386,16 +420,73 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
           </div>
         </div>
 
-        {/* Opp team label */}
-        <div className="w-44 flex-shrink-0 text-right">
-          <div className="text-[8px] uppercase font-black tracking-widest" style={{ color: 'var(--sandy-brown)' }}>
+        {/* Opp team label — desktop */}
+        <div className="hidden sm:block w-44 flex-shrink-0 text-right">
+          <div className="text-[8px] uppercase font-black tracking-widest truncate" style={{ color: 'var(--sandy-brown)' }}>
             {oppName}
           </div>
           <div className="text-xs font-bold" style={{ color: 'var(--muted)' }}>
             {oppTeam.length}/11 · {oppTeam.filter(p => p.can_bowl).length} bowlers
           </div>
         </div>
+
+        {/* Mobile: opp team count badge */}
+        <div className="sm:hidden flex-shrink-0 text-right">
+          <div className="text-[8px] font-black truncate max-w-[60px]" style={{ color: 'var(--sandy-brown)' }}>
+            {oppName.split(' ')[0]}
+          </div>
+          <div className="text-[9px] font-bold" style={{ color: 'var(--muted)' }}>{oppTeam.length}/11</div>
+        </div>
       </div>
+
+      {/* ── Mobile: My XI panel ───────────────────────────────────────── */}
+      {mobilePanel === 'mine' && (
+        <div className="sm:hidden flex-none border-b px-3 py-2"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="text-[8px] uppercase font-black tracking-widest mb-1.5" style={{ color: 'var(--sage-green)' }}>
+            {myName} (You) — {myTeam.length}/11 · {myBowlerCount}🎳
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {Array.from({ length: 11 }, (_, i) => myTeam[i]).map((p, i) =>
+              p ? (
+                <div key={i} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold"
+                  style={{ background: 'rgba(108,174,117,0.1)', border: '1px solid rgba(108,174,117,0.3)' }}>
+                  <span>{teamFlag([p.team])}</span>
+                  <span className="truncate max-w-[64px]">{dn(p.name, cn)}</span>
+                  {p.can_bowl && <span style={{ color: 'var(--sandy-brown)' }}>·B</span>}
+                </div>
+              ) : (
+                <div key={i} className="w-16 h-5 rounded"
+                  style={{ border: '1px dashed var(--border)', background: 'transparent' }} />
+              )
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Mobile: Opp XI panel ──────────────────────────────────────── */}
+      {mobilePanel === 'opp' && (
+        <div className="sm:hidden flex-none border-b px-3 py-2"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="text-[8px] uppercase font-black tracking-widest mb-1.5" style={{ color: 'var(--sandy-brown)' }}>
+            {oppName} — {oppTeam.length}/11 · {oppTeam.filter(p => p.can_bowl).length}🎳
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {Array.from({ length: 11 }, (_, i) => oppTeam[i]).map((p, i) =>
+              p ? (
+                <div key={i} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold"
+                  style={{ background: 'rgba(245,166,91,0.08)', border: '1px solid rgba(245,166,91,0.3)' }}>
+                  <span>{teamFlag([p.team])}</span>
+                  <span className="truncate max-w-[64px]">{dn(p.name, cn)}</span>
+                </div>
+              ) : (
+                <div key={i} className="w-16 h-5 rounded"
+                  style={{ border: '1px dashed var(--border)', background: 'transparent' }} />
+              )
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Error banner ──────────────────────────────────────────────── */}
       {pickError && (
@@ -407,11 +498,11 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
         </div>
       )}
 
-      {/* ── Three-column body ─────────────────────────────────────────── */}
+      {/* ── Body: three-column on desktop, full-width pool on mobile ─── */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
 
-        {/* My team */}
-        <div className="w-44 flex-shrink-0 flex flex-col gap-1 px-2 py-2 overflow-y-auto border-r"
+        {/* My team — desktop only */}
+        <div className="hidden sm:flex w-44 flex-shrink-0 flex-col gap-1 px-2 py-2 overflow-y-auto border-r"
           style={{ borderColor: 'rgba(108,174,117,0.2)', background: 'rgba(108,174,117,0.02)' }}>
           <div className="text-[8px] uppercase font-black tracking-widest mb-0.5 flex justify-between"
             style={{ color: 'var(--sage-green)' }}>
@@ -426,19 +517,32 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
         </div>
 
         {/* Pool grid */}
-        <div className="flex-1 overflow-hidden p-3 flex flex-col min-w-0" style={{ minHeight: 0 }}>
-          <div className="flex items-center gap-3 mb-2 flex-none text-[8px] uppercase font-black tracking-widest" style={{ color: 'var(--palm-leaf)' }}>
-            <span>Draft Pool — {pool.length} players</span>
-            <span style={{ color: 'var(--muted)' }}>({remaining.length} remaining)</span>
-            <span className="ml-auto flex items-center gap-3" style={{ color: 'var(--muted)' }}>
+        <div className="flex-1 overflow-hidden p-2 md:p-3 flex flex-col min-w-0" style={{ minHeight: 0 }}>
+          <div className="flex items-center gap-2 md:gap-3 mb-2 flex-none text-[8px] uppercase font-black tracking-widest flex-wrap" style={{ color: 'var(--palm-leaf)' }}>
+            <span>Pool — {pool.length} players</span>
+            <span style={{ color: 'var(--muted)' }}>({remaining.length} left)</span>
+            <span className="hidden md:flex ml-auto items-center gap-3" style={{ color: 'var(--muted)' }}>
               <span className="flex items-center gap-1">
                 <span className="inline-block w-2 h-2 rounded-sm" style={{ background: 'rgba(245,166,91,0.3)' }} />
                 BOWL = eligible bowler
               </span>
               <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5" /> auto-pick on timeout</span>
             </span>
+            {/* Mobile auto-pick toggle */}
+            <button
+              onClick={toggleAutoPick}
+              className="sm:hidden ml-auto flex items-center gap-1 px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest"
+              style={{
+                background: autoPickEnabled ? 'rgba(245,166,91,0.15)' : 'var(--surface-2)',
+                color: autoPickEnabled ? 'var(--sandy-brown)' : 'var(--muted)',
+                border: `1px solid ${autoPickEnabled ? 'var(--sandy-brown)' : 'var(--border)'}`,
+              }}
+            >
+              <Shuffle className="w-2.5 h-2.5" />
+              {autoPickEnabled ? 'Auto: ON' : 'Auto'}
+            </button>
           </div>
-          {/* Grid fills all remaining height — no scrollbar ever */}
+          {/* Grid fills all remaining height */}
           <div
             ref={gridRef}
             className="flex-1 min-h-0"
@@ -462,8 +566,8 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
           </div>
         </div>
 
-        {/* Opp team */}
-        <div className="w-44 flex-shrink-0 flex flex-col gap-1 px-2 py-2 overflow-y-auto border-l"
+        {/* Opp team — desktop only */}
+        <div className="hidden sm:flex w-44 flex-shrink-0 flex-col gap-1 px-2 py-2 overflow-y-auto border-l"
           style={{ borderColor: 'rgba(245,166,91,0.2)', background: 'rgba(245,166,91,0.02)' }}>
           <div className="text-[8px] uppercase font-black tracking-widest mb-0.5 flex justify-between"
             style={{ color: 'var(--sandy-brown)' }}>

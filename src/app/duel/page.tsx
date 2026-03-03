@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Swords, Copy, Check, Loader2, Pencil, Shuffle, Users, BookOpen, Zap } from 'lucide-react';
+import { ArrowLeft, Swords, Copy, Check, Loader2, Pencil, Shuffle, Users, BookOpen } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 
@@ -55,7 +55,6 @@ export default function DuelPage() {
   const [savingName, setSavingName]   = useState(false);
   const [joinError, setJoinError] = useState('');
   const [autoPickEnabled, setAutoPickEnabled] = useState(false);
-  const [simSpeed, setSimSpeed] = useState<'slow' | 'moderate' | 'max'>('moderate');
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -66,10 +65,6 @@ export default function DuelPage() {
       .finally(() => setLoading(false));
     // Restore preferences
     setAutoPickEnabled(localStorage.getItem('duel_auto_pick') === 'true');
-    const storedSpeed = localStorage.getItem('duel_sim_speed');
-    if (storedSpeed === 'slow' || storedSpeed === 'moderate' || storedSpeed === 'max') {
-      setSimSpeed(storedSpeed);
-    }
   }, []);
 
   // ── Subscribe to lobby realtime once we have one ───────────────────────────
@@ -197,10 +192,10 @@ export default function DuelPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
-      <div className="max-w-[1200px] mx-auto px-4 py-8 flex gap-8 items-start">
+      <div className="max-w-[1200px] mx-auto px-4 py-6 md:py-8 flex flex-col lg:flex-row gap-8 items-start">
         
         {/* ── LEFT — lobby panel ──────────────────────────────────────── */}
-        <div className="w-full max-w-md flex-shrink-0 flex flex-col">
+        <div className="w-full lg:max-w-md lg:flex-shrink-0 flex flex-col">
 <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-8 hover:opacity-70 transition-opacity" style={{ color: 'var(--muted)' }}>
         <ArrowLeft className="w-3.5 h-3.5" /> Back
       </Link>
@@ -290,44 +285,6 @@ export default function DuelPage() {
         )}
       </button>
 
-      {/* Simulation Speed picker */}
-      <div className="rounded-2xl p-4 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center gap-2 mb-3">
-          <Zap className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--sandy-brown)' }} />
-          <span className="text-xs font-black uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Simulation Speed</span>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {([
-            { key: 'slow',     label: 'Slow',     sub: '0.5×' },
-            { key: 'moderate', label: 'Moderate', sub: '2×'   },
-            { key: 'max',      label: 'Max',      sub: 'instant' },
-          ] as const).map(opt => {
-            const active = simSpeed === opt.key;
-            return (
-              <button
-                key={opt.key}
-                onClick={() => {
-                  setSimSpeed(opt.key);
-                  localStorage.setItem('duel_sim_speed', opt.key);
-                }}
-                className="flex flex-col items-center gap-0.5 py-2.5 rounded-xl transition-all"
-                style={{
-                  background: active ? 'rgba(245,166,91,0.15)' : 'var(--surface-2)',
-                  border: `1px solid ${active ? 'var(--sandy-brown)' : 'var(--border)'}`,
-                }}
-              >
-                <span className="text-xs font-black" style={{ color: active ? 'var(--sandy-brown)' : 'var(--foreground)' }}>
-                  {opt.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <p className="mt-2 text-[10px]" style={{ color: 'var(--muted)' }}>
-          Configure before game starts
-        </p>
-      </div>
-
       {/* Create Duel */}
       {!lobby ? (
         <button
@@ -390,7 +347,7 @@ export default function DuelPage() {
         </div>{/* end left panel */}
 
         {/* ── RIGHT — rules & info sidebar ────────────────────────────── */}
-        <div className="flex-1 min-w-0 flex flex-col gap-5 pt-16">
+        <div className="w-full lg:flex-1 lg:min-w-0 flex flex-col gap-5 lg:pt-16">
 
           {/* What is Duel? */}
           <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>

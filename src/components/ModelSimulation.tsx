@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Model, BallEvent, MatchDetail, SeriesSummaryData } from '@/types';
+import { Model, BallEvent, MatchDetail, SeriesSummaryData, SlottedPlayer } from '@/types';
 import { getApiUrl } from '@/lib/api';
 import ScoreCardLive from './ScoreCardLive';
 import SeriesSummary from './SeriesSummary';
@@ -10,10 +10,15 @@ interface ModelSimulationProps {
   model: Model;
   payload: any;
   start: boolean;
+  /** Legacy: name→id map. */
   playerIdMap?: Record<string, string | number>;
+  /** Preferred: game-ID→playerId map (handles duplicate players). */
+  gameIdMap?: Record<number, string | number>;
+  /** All players (both teams) for game ID resolution. */
+  allPlayers?: SlottedPlayer[];
 }
 
-export default function ModelSimulation({ model, payload, start, playerIdMap }: ModelSimulationProps) {
+export default function ModelSimulation({ model, payload, start, playerIdMap, gameIdMap, allPlayers }: ModelSimulationProps) {
   const [matchDetail, setMatchDetail] = useState<BallEvent | null>(null);
   const [completedMatches, setCompletedMatches] = useState<any[]>([]);
   const [liveSummary, setLiveSummary] = useState<any>(null);
@@ -148,7 +153,7 @@ export default function ModelSimulation({ model, payload, start, playerIdMap }: 
       <div className="p-4 flex-1 flex flex-col gap-4 overflow-hidden">
         {matchDetail ? (
            <div className="flex-none scale-90 origin-top-left w-[111%] -mb-4">
-             <ScoreCardLive detail={matchDetail} live={status === 'running'} playerIdMap={playerIdMap} />
+             <ScoreCardLive detail={matchDetail} live={status === 'running'} playerIdMap={playerIdMap} gameIdMap={gameIdMap} allPlayers={allPlayers} />
            </div>
         ) : (
             <div className="flex-1 flex items-center justify-center text-xs font-mono" style={{ color: 'var(--muted)' }}>

@@ -52,7 +52,7 @@ const Commentary = ({ events }: CommentaryProps) => {
   const reversedOvers = [...groupedOvers].reverse();
 
   return (
-    <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] h-96 flex flex-col shadow-xl overflow-hidden">
+    <div className="flex flex-col">
       <div className="p-3 border-b border-[var(--border)] bg-[var(--surface-2)] text-[var(--muted)] text-xs font-bold uppercase tracking-widest flex justify-between items-center z-10 shrink-0">
         <span className="flex items-center gap-2">
            <span className="w-2 h-2 rounded-full bg-[var(--sandy-brown)] animate-pulse"></span>
@@ -60,8 +60,8 @@ const Commentary = ({ events }: CommentaryProps) => {
         </span>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 scrollbar-hide space-y-4 relative bg-[rgba(var(--background-rgb),0.5)]" style={{ overflowAnchor: 'auto' }}>
-        {events.length === 0 && <div className="text-center text-[var(--muted)] italic mt-32">Waiting for first ball...</div>}
+      <div className="p-4 space-y-4 bg-[rgba(var(--background-rgb),0.5)]">
+        {events.length === 0 && <div className="text-center text-[var(--muted)] italic py-12">Waiting for first ball...</div>}
         
         {reversedOvers.map((over, idx) => (
           <div key={over.key} className={`p-4 rounded-xl border bg-[rgba(var(--surface-rgb),0.5)] border-[var(--border)] flex flex-col gap-3 transition-colors`}>
@@ -90,7 +90,6 @@ const Commentary = ({ events }: CommentaryProps) => {
             </div>
           </div>
         ))}
-        {/* Anchor element to help browser heuristics if needed, but overflow-anchor usually works on container */}
       </div>
     </div>
   );

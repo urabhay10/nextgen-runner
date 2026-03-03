@@ -13,12 +13,38 @@ import { MatchDetail, BallEvent, HistoryItem, SeriesSummaryData, Model, SlottedP
 import { fetchModels, getApiUrl } from '@/lib/api';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-/** Create 11 slotted-player slots for a team. Prefix keeps UIDs globally unique. */
-function makeSlots(names: string[], prefix: string): SlottedPlayer[] {
-  return Array.from({ length: 11 }, (_, i) => ({ uid: `${prefix}_${i}`, name: names[i] ?? '' }));
+/**
+ * Compute the "natural" inter-ball delay.
+ * @param baseMs  Base delay per ball (the user-controlled `x`).
+ * @param over    0-indexed over number (0-19).
+ * @param outcome Runs scored on the ball, or 'W' for wicket.
+ */
+function calcNaturalDelay(baseMs: number, over: number, outcome: number | string): number {
+  const ballMult =
+    outcome === 'W' ? 3.0
+    : outcome === 6  ? 2.0
+    : outcome === 4  ? 1.5
+    : outcome === 2  ? 1.25
+    : outcome === 1  ? 1.05
+    : 1.0;
+  // In overs 16-19 the tension factor ramps from 1.1× to 1.4×
+  const overMult = over <= 15 ? 1.0 : 1 + (over - 15) / 10;
+  return Math.round(baseMs * ballMult * overMult);
 }
 
-/** Map a backend-returned name-array bowling order back to uid-based order. */
+/** Create 11 slotted-player slots for a team. Prefix keeps UIDs globally unique.
+ *  baseGameId: 0 for team1 (IDs 0-10), 11 for team2 (IDs 11-21). */
+function makeSlots(names: string[], prefix: string, baseGameId: number = 0): SlottedPlayer[] {
+  return Array.from({ length: 11 }, (_, i) => ({ uid: `${prefix}_${i}`, name: names[i] ?? '', gameId: baseGameId + i }));
+}
+
+/** Map a backend-returned slot-index array bowling order back to uid-based order.
+ *  Slot index i maps directly to players[i].uid — no name ambiguity. */
+function slotsToUidOrder(slots: number[], players: SlottedPlayer[]): string[] {
+  return slots.map(i => players[i]?.uid ?? '');
+}
+
+/** Map a backend-returned name-array bowling order back to uid-based order (fallback). */
 function namesToUidOrder(names: string[], players: SlottedPlayer[]): string[] {
   // For each name, find the first still-unused slot with that name
   const used = new Set<string>();
@@ -38,9 +64,10 @@ function uidOrderToNames(order: string[], players: SlottedPlayer[]): string[] {
 export default function Simulator() {
   const [stage, setStage] = useState<'setup' | 'live'>('setup');
   const [numMatches, setNumMatches] = useState<string>('1');
-  const [team1, setTeam1] = useState({ name: "India",     players: makeSlots(Array(11).fill(''), 't1') });
-  const [team2, setTeam2] = useState({ name: "Australia", players: makeSlots(Array(11).fill(''), 't2') });
-  const [playerIdMap, setPlayerIdMap] = useState<Record<string, string | number>>({});
+  const [team1, setTeam1] = useState({ name: "India",     players: makeSlots(Array(11).fill(''), 't1', 0) });
+  const [team2, setTeam2] = useState({ name: "Australia", players: makeSlots(Array(11).fill(''), 't2', 11) });
+  // Maps game ID (0–21) → database player ID for PlayerLink rendering
+  const [playerIdMap, setPlayerIdMap] = useState<Record<number, string | number>>({});
   
   // Models
   const [models, setModels] = useState<Model[]>([]);
@@ -74,8 +101,17 @@ export default function Simulator() {
   // stepOnceRef: flag that causes both waitIfPaused AND the subsequent wait() to resolve instantly
   const stepOnceRef = useRef(false);
 
+  // Natural speed mode
+  const [naturalMode, setNaturalMode] = useState(false);
+  const naturalModeRef = useRef(false);
+  // Base delay for natural mode (600 ms = comfortable "1x" pace)
+  const NATURAL_BASE_MS = 600;
+  // Tracks the last ball's outcome + over so natural delay can be computed
+  const lastBallRef = useRef<{ over: number; outcome: number | string }>({ over: 0, outcome: 0 });
+
   useEffect(() => { delayMsRef.current = delayMs; }, [delayMs]);
   useEffect(() => { pausedRef.current = paused; }, [paused]);
+  useEffect(() => { naturalModeRef.current = naturalMode; }, [naturalMode]);
 
   // Speed steps: 0.2x = 5000ms delay, 1x = 1000ms, 5x = 200ms, MAX = 0ms
   const SPEED_STEPS = [5000, 2000, 1000, 500, 200, 100, 0]; // index 2 = 1x default
@@ -102,8 +138,8 @@ export default function Simulator() {
       // Don't fire if user is typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === ' ') { e.preventDefault(); setPaused(p => !p); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); speedUp(); }
-      else if (e.key === 'ArrowDown') { e.preventDefault(); slowDown(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); if (!naturalModeRef.current) speedUp(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); if (!naturalModeRef.current) slowDown(); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); advanceOneBall(); }
     };
     window.addEventListener('keydown', handleKey);
@@ -130,8 +166,8 @@ export default function Simulator() {
   }, []);
 
   const fillDefaults = () => {
-    setTeam1({ name: "India",     players: makeSlots(["Rohit Sharma","Virat Kohli","Rishabh Pant","Suryakumar Yadav","Shivam Dube","Hardik Pandya","Ravindra Jadeja","Axar Patel","Kuldeep Yadav","Jasprit Bumrah","Arshdeep Singh"], 't1') });
-    setTeam2({ name: "Australia", players: makeSlots(["David Warner","Travis Head","Mitchell Marsh","Glenn Maxwell","Marcus Stoinis","Tim David","Matthew Wade","Pat Cummins","Mitchell Starc","Adam Zampa","Josh Hazlewood"], 't2') });
+    setTeam1({ name: "India",     players: makeSlots(["Rohit Sharma","Virat Kohli","Rishabh Pant","Suryakumar Yadav","Shivam Dube","Hardik Pandya","Ravindra Jadeja","Axar Patel","Kuldeep Yadav","Jasprit Bumrah","Arshdeep Singh"], 't1', 0) });
+    setTeam2({ name: "Australia", players: makeSlots(["David Warner","Travis Head","Mitchell Marsh","Glenn Maxwell","Marcus Stoinis","Tim David","Matthew Wade","Pat Cummins","Mitchell Starc","Adam Zampa","Josh Hazlewood"], 't2', 11) });
   };
 
   const fetchDefaultBowlingOrder = async (teamId: 1 | 2) => {
@@ -152,8 +188,11 @@ export default function Simulator() {
       });
       if (!res.ok) throw new Error('Failed to generate bowling order');
       const data = await res.json();
-      if (data.bowling_order) {
-        // Convert name-array returned by backend back to uid-based order
+      if (data.bowling_order_indices) {
+        // Preferred: use slot indices for unambiguous duplicate-player mapping
+        setOrder(slotsToUidOrder(data.bowling_order_indices, team.players));
+      } else if (data.bowling_order) {
+        // Fallback: name-based mapping
         setOrder(namesToUidOrder(data.bowling_order, team.players));
       }
     } catch (e) {
@@ -345,32 +384,37 @@ export default function Simulator() {
         try {
           const data = JSON.parse(line);
           if (data.type === 'ball') {
-            const isMax = delayMsRef.current === 0;
+            // In natural mode we always wait; otherwise skip at MAX speed
+            const isMax = !naturalModeRef.current && delayMsRef.current === 0;
 
-            // At MAX speed (and not single-stepping): skip await/delay overhead entirely
-            if (!isMax || pausedRef.current) {
-              // Wait if paused
-              await waitIfPaused();
-              if (simulationIdRef.current !== currentSimId) return;
-              // Apply delay
-              const currentDelay = delayMsRef.current;
-              if (currentDelay > 0) await wait(currentDelay);
-              if (simulationIdRef.current !== currentSimId) return;
-            }
-
-            // Always update live ScoreCard (cheap single-object swap)
+            // ── 1. Show ball immediately (delay happens AFTER, not before) ──
             setMatchDetail(data.detail);
 
-            // At MAX speed skip commentary accumulation — the expensive prev => [...prev, x] copy
+            // ── 2. Commentary — always accumulate so the full feed is visible ─
+            const latestEvent = { ...data.detail, runs_scored: data.detail.runs_scored, is_wicket: data.detail.is_wicket, innings: data.innings, match_no: data.match_no } as BallEvent;
+            setBallEvents(prev => {
+              const currentMatchNo = data.match_no;
+              const lastMatchNo = prev.length > 0 ? prev[prev.length - 1].match_no : currentMatchNo;
+              if (currentMatchNo !== lastMatchNo) {
+                return [latestEvent];
+              }
+              return [...prev, latestEvent];
+            });
+
+            // ── 3. Wait / delay (after showing ball, before next ball) ─────
             if (!isMax || pausedRef.current) {
-              setBallEvents(prev => {
-                const currentMatchNo = data.match_no;
-                const lastMatchNo = prev.length > 0 ? prev[prev.length - 1].match_no : currentMatchNo;
-                if (currentMatchNo !== lastMatchNo) {
-                  return [{ ...data.detail, runs_scored: data.detail.runs_scored, is_wicket: data.detail.is_wicket, innings: data.innings, match_no: data.match_no } as BallEvent];
-                }
-                return [...prev, { ...data.detail, runs_scored: data.detail.runs_scored, is_wicket: data.detail.is_wicket, innings: data.innings, match_no: data.match_no } as BallEvent];
-              });
+              await waitIfPaused();
+              if (simulationIdRef.current !== currentSimId) return;
+              // Capture last ball info for natural delay computation
+              lastBallRef.current = {
+                over:    data.detail?.over ?? 0,
+                outcome: data.detail?.is_wicket ? 'W' : (data.detail?.runs_scored ?? 0),
+              };
+              const currentDelay = naturalModeRef.current
+                ? calcNaturalDelay(NATURAL_BASE_MS, lastBallRef.current.over, lastBallRef.current.outcome)
+                : delayMsRef.current;
+              if (currentDelay > 0) await wait(currentDelay);
+              if (simulationIdRef.current !== currentSimId) return;
             }
           } else if (data.type === 'match_update') {
             // Append new matches to the end of the list so previous matches don't shift down
@@ -419,12 +463,12 @@ export default function Simulator() {
   };
 
   if (stage === 'setup') return (
-    <div className="min-h-screen p-8 max-w-6xl mx-auto" style={{ background: 'var(--background)' }}>
-      <header className="mb-12 text-center relative">
-          <Link href="/" className="absolute left-0 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)] transition flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-full border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-            <ArrowLeft className="w-4 h-4" /> BACK TO HOME
+    <div className="min-h-screen p-4 md:p-8 max-w-6xl mx-auto" style={{ background: 'var(--background)' }}>
+      <header className="mb-8 md:mb-12 text-center relative">
+          <Link href="/" className="absolute left-0 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--foreground)] transition flex items-center gap-1 md:gap-2 text-sm font-bold px-2 md:px-4 py-2 rounded-full border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">BACK TO HOME</span>
           </Link>
-        <h1 className="text-5xl font-black text-[var(--foreground)] tracking-tight">CRICKET SERIES SIMULATOR</h1>
+        <h1 className="text-2xl sm:text-3xl md:text-5xl font-black text-[var(--foreground)] tracking-tight">CRICKET SERIES SIMULATOR</h1>
       </header>
       <div className="grid md:grid-cols-2 gap-8">
         {/* Team 1 */}
@@ -444,7 +488,7 @@ export default function Simulator() {
               value={p.name} 
               index={i}
               onChange={v => updatePlayer(1, i, v)}
-              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [name]: id })); }}
+              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [team1.players[i].gameId]: id })); }}
               onBulkPaste={values => bulkPastePlayer(1, i, values)}
               placeholder={`Player ${i + 1}`} 
             />
@@ -468,17 +512,17 @@ export default function Simulator() {
               value={p.name} 
               index={i}
               onChange={v => updatePlayer(2, i, v)}
-              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [name]: id })); }}
+              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [team2.players[i].gameId]: id })); }}
               onBulkPaste={values => bulkPastePlayer(2, i, values)}
               placeholder={`Player ${i + 1}`} 
             />
           ))}
         </div>
       </div>
-      <div className="mt-12 flex flex-col items-center gap-5">
+      <div className="mt-8 md:mt-12 flex flex-col items-center gap-5">
         {/* Config row */}
-        <div className="flex items-stretch gap-0 rounded-xl border overflow-hidden divide-x" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-          <div className="flex flex-col justify-center px-6 py-4 gap-1" style={{ borderRightColor: 'var(--border)' }}>
+        <div className="flex flex-wrap items-stretch gap-0 rounded-xl border overflow-hidden divide-x" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+          <div className="flex flex-col justify-center px-4 md:px-6 py-3 md:py-4 gap-1" style={{ borderRightColor: 'var(--border)' }}>
             <span className="text-[9px] uppercase font-black text-[var(--muted)] tracking-widest">Matches</span>
             <input
               type="number"
@@ -490,7 +534,7 @@ export default function Simulator() {
               style={{ color: 'var(--sage-green)' }}
             />
           </div>
-          <div className="flex flex-col justify-center px-6 py-4 gap-1 min-w-[200px]">
+          <div className="flex flex-col justify-center px-4 md:px-6 py-3 md:py-4 gap-1 min-w-[160px] md:min-w-[200px]">
             <span className="text-[9px] uppercase font-black text-[var(--muted)] tracking-widest">AI Model</span>
             <select
               value={selectedModel}
@@ -555,35 +599,58 @@ export default function Simulator() {
 
   return (
     <div className="min-h-screen text-[var(--foreground)] flex" style={{ background: 'var(--background)' }}>
-      {/* Control Sidebar */}
-      <div className="w-14 bg-[var(--surface)] border-r border-[var(--border)] flex flex-col items-center py-4 gap-3 z-50 fixed left-0 h-full">
+      {/* Control Sidebar — desktop: fixed left strip; mobile: fixed bottom bar */}
+      <div className="
+        fixed z-50 bg-[var(--surface)] border-[var(--border)]
+        bottom-0 left-0 right-0 h-12 border-t flex-row
+        md:bottom-auto md:left-0 md:top-0 md:right-auto md:w-14 md:h-full md:border-t-0 md:border-r md:flex-col md:py-4 md:gap-3
+        flex items-center justify-around md:justify-start px-2 md:px-0
+      ">
         {/* Back / Stop & Reset */}
         <button onClick={stopAndReset} className="p-2.5 rounded-xl hover:bg-[var(--surface-2)] text-[var(--muted)] transition" title="Back to Setup">
           <ArrowLeft className="w-4 h-4" />
         </button>
 
-        <div className="w-8 border-t border-[var(--border)]" />
+        <div className="hidden md:block w-8 border-t border-[var(--border)]" />
 
         {/* Speed up */}
         <button onClick={speedUp} title={`Speed up (current: ${getSpeedLabel(delayMs)})`}
           className="p-2.5 rounded-xl hover:bg-[var(--surface-2)] transition"
-          style={{ color: currentSpeedIdx === SPEED_STEPS.length - 1 ? 'var(--sage-green)' : 'var(--muted)' }}>
+          style={{ color: naturalMode ? 'var(--border)' : currentSpeedIdx === SPEED_STEPS.length - 1 ? 'var(--sage-green)' : 'var(--muted)',
+                   pointerEvents: naturalMode ? 'none' : 'auto', opacity: naturalMode ? 0.3 : 1 }}>
           <ChevronUp className="w-4 h-4" />
         </button>
 
         {/* Speed label */}
         <span className="text-[9px] font-black font-mono tabular-nums" style={{ color: 'var(--sage-green)' }}>
-          {getSpeedLabel(delayMs)}
+          {naturalMode ? 'AUTO' : getSpeedLabel(delayMs)}
         </span>
 
         {/* Slow down */}
         <button onClick={slowDown} title="Slow down"
           className="p-2.5 rounded-xl hover:bg-[var(--surface-2)] transition"
-          style={{ color: currentSpeedIdx === 0 ? 'var(--sage-green)' : 'var(--muted)' }}>
+          style={{ color: naturalMode ? 'var(--border)' : currentSpeedIdx === 0 ? 'var(--sage-green)' : 'var(--muted)',
+                   pointerEvents: naturalMode ? 'none' : 'auto', opacity: naturalMode ? 0.3 : 1 }}>
           <ChevronDown className="w-4 h-4" />
         </button>
 
-        <div className="w-8 border-t border-[var(--border)]" />
+        <div className="hidden md:block w-8 border-t border-[var(--border)]" />
+
+        {/* Natural/Auto mode toggle */}
+        <button
+          onClick={() => setNaturalMode(m => !m)}
+          title={naturalMode ? 'Auto speed ON — click to disable' : 'Enable auto speed (delays based on ball outcome)'}
+          className="px-1.5 py-1 rounded-lg transition text-[9px] font-black tracking-widest"
+          style={{
+            background: naturalMode ? 'rgba(108,174,117,0.15)' : 'var(--surface-2)',
+            color: naturalMode ? 'var(--sage-green)' : 'var(--muted)',
+            border: `1px solid ${naturalMode ? 'rgba(108,174,117,0.4)' : 'transparent'}`,
+          }}
+        >
+          AUTO
+        </button>
+
+        <div className="hidden md:block w-8 border-t border-[var(--border)]" />
 
         {/* Pause / Resume */}
         <button onClick={() => setPaused(p => !p)} title={paused ? 'Resume (Space)' : 'Pause (Space)'}
@@ -599,38 +666,38 @@ export default function Simulator() {
         </button>
       </div>
 
-      <div className="flex-1 ml-14 p-4 md:p-8 max-w-[1600px] mx-auto w-full">
-        <header className="mb-6 flex justify-between items-center bg-[rgba(var(--surface-rgb),0.5)] p-4 rounded-xl border border-[rgba(var(--border-rgb),0.5)] backdrop-blur">
+      <div className="flex-1 md:ml-14 pb-14 md:pb-0 p-3 md:p-8 max-w-[1600px] mx-auto w-full">
+        <header className="mb-4 md:mb-6 flex justify-between items-center bg-[rgba(var(--surface-rgb),0.5)] p-3 md:p-4 rounded-xl border border-[rgba(var(--border-rgb),0.5)] backdrop-blur">
           <div>
-            <div className="flex items-center gap-3">
-                {delayMs === 0 && !paused && !seriesComplete && (
+            <div className="flex items-center gap-2 md:gap-3">
+                {(delayMs === 0 || naturalMode) && !paused && !seriesComplete && (
                   <div className="w-2 h-2 rounded-full bg-[var(--sandy-brown)] animate-pulse"></div>
                 )}
-                <h1 className="text-xl font-black italic tracking-tighter text-[var(--foreground)]">
-                {delayMs === 0 && !paused && !seriesComplete ? 'LIVE SIMULATION' : 'SIMULATION'}
+                <h1 className="text-base md:text-xl font-black italic tracking-tighter text-[var(--foreground)]">
+                {(delayMs === 0 || naturalMode) && !paused && !seriesComplete ? 'LIVE SIMULATION' : 'SIMULATION'}
                 </h1>
             </div>
-            <div className="flex gap-3 text-xs font-mono text-[var(--muted)] mt-1 pl-5">
-              <span>{matchDetail?.match_no ? `Match ${matchDetail.match_no} of ${numMatches}` : 'Starting...'}</span>
-              <span>•</span>
-              <span>Model: {selectedModel || 'Default'}</span>
+            <div className="flex gap-2 md:gap-3 text-xs font-mono text-[var(--muted)] mt-0.5 md:mt-1 pl-4 md:pl-5">
+              <span className="truncate">{matchDetail?.match_no ? `Match ${matchDetail.match_no}/${numMatches}` : 'Starting...'}</span>
+              <span className="hidden sm:inline">•</span>
+              <span className="hidden sm:inline">Model: {selectedModel || 'Default'}</span>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-               {delayMs > 0 && !seriesComplete && (
-                 <button onClick={() => { setDelayMs(0); setPaused(false); }} className="px-4 py-2 bg-[var(--surface-2)] hover:bg-[var(--sage-green)] hover:text-[var(--background)] text-[var(--muted)] font-bold text-xs rounded-lg transition flex items-center gap-2 border border-[var(--border)] hover:border-[var(--sage-green)]">
-                   <Zap className="w-3 h-3" /> GO LIVE
+          <div className="flex items-center gap-2 md:gap-4">
+               {delayMs > 0 && !naturalMode && !seriesComplete && (
+                 <button onClick={() => { setDelayMs(0); setPaused(false); }} className="px-2 md:px-4 py-1.5 md:py-2 bg-[var(--surface-2)] hover:bg-[var(--sage-green)] hover:text-[var(--background)] text-[var(--muted)] font-bold text-xs rounded-lg transition flex items-center gap-1 md:gap-2 border border-[var(--border)] hover:border-[var(--sage-green)]">
+                   <Zap className="w-3 h-3" /> <span className="hidden sm:inline">GO LIVE</span>
                  </button>
                )}
-               {seriesComplete && <div className="text-[var(--sage-green)] font-bold text-sm bg-[rgba(var(--sage-green-rgb),0.1)] px-3 py-1 rounded-full border border-[rgba(var(--sage-green-rgb),0.2)]">SERIES COMPLETE</div>}
+               {seriesComplete && <div className="text-[var(--sage-green)] font-bold text-xs md:text-sm bg-[rgba(var(--sage-green-rgb),0.1)] px-2 md:px-3 py-1 rounded-full border border-[rgba(var(--sage-green-rgb),0.2)] whitespace-nowrap">SERIES COMPLETE</div>}
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-140px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6 lg:h-[calc(100vh-140px)]">
           {/* Main Scorecard Area */}
-          <div className="lg:col-span-3 flex flex-col gap-6 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--border)] pr-2">
+          <div className="lg:col-span-3 flex flex-col gap-4 md:gap-6 lg:h-full lg:overflow-y-auto scrollbar-thin scrollbar-thumb-[var(--border)] pr-0 lg:pr-2">
              <div className="flex-none">
-                <ScoreCardLive detail={matchDetail} live={delayMs === 0 && !paused && !seriesComplete} playerIdMap={playerIdMap} />
+                <ScoreCardLive detail={matchDetail} live={(delayMs === 0 || naturalMode) && !paused && !seriesComplete} gameIdMap={playerIdMap} allPlayers={[...team1.players, ...team2.players]} />
              </div>
              
              {/* Match History Grid */}
@@ -652,8 +719,8 @@ export default function Simulator() {
                                          <span className="text-sm font-bold text-[var(--sage-green)] bg-[rgba(var(--sage-green-rgb),0.1)] px-3 py-1 rounded-full border border-[rgba(var(--sage-green-rgb),0.2)]">{h.winner} won by {h.margin}</span>
                                      </div>
                                      <div className="p-4 grid lg:grid-cols-2 gap-6 bg-[rgba(var(--surface-rgb),0.5)]">
-                                         <DetailedScorecard teamName={t1} data={s1} playerIdMap={playerIdMap} />
-                                         <DetailedScorecard teamName={t2} data={s2} playerIdMap={playerIdMap} />
+                                         <DetailedScorecard teamName={t1} data={s1} gameIdMap={playerIdMap} teamPlayers={teams[0] === team1.name ? team1.players : team2.players} />
+                                         <DetailedScorecard teamName={t2} data={s2} gameIdMap={playerIdMap} teamPlayers={teams[1] === team1.name ? team1.players : team2.players} />
                                      </div>
                                  </div>
                              );
@@ -664,21 +731,21 @@ export default function Simulator() {
           </div>
           
           {/* Right Sidebar */}
-          <div className="flex flex-col gap-3 h-full min-h-0">
+          <div className="flex flex-col gap-3 lg:h-full min-h-0">
              {/* Commentary — fixed min height so it never collapses too small */}
-             <div className="flex flex-col min-h-0" style={{ flex: liveSummary ? '0 0 auto' : '1 1 0', minHeight: liveSummary ? '220px' : undefined, maxHeight: liveSummary ? '50%' : '100%' }}>
+             <div className="flex flex-col min-h-0" style={{ flex: liveSummary ? '0 0 auto' : '1 1 0', minHeight: liveSummary ? '180px' : undefined, maxHeight: liveSummary ? '50%' : '100%' }}>
                <div className="bg-[rgba(var(--surface-rgb),0.5)] border border-[var(--border)] rounded-xl overflow-hidden flex flex-col h-full">
                  <div className="p-3 border-b border-[var(--border)] bg-[rgba(var(--surface-rgb),0.8)] backdrop-blur flex-none">
                      <h3 className="text-xs font-bold text-[var(--muted)] uppercase tracking-widest">Commentary</h3>
                  </div>
-                <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="flex-1 overflow-y-auto min-h-0 h-48 lg:h-auto">
                     <Commentary events={ballEvents} />
                 </div>
                </div>
              </div>
 
              {liveSummary && (
-                 <div className="flex-1 min-h-0">
+                 <div className="lg:flex-1 min-h-0">
                      <SeriesSummary 
                         data={liveSummary} 
                         isExpanded={showSummaryFull}

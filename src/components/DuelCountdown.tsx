@@ -107,24 +107,24 @@ export default function DuelCountdown({ match, myUserId }: DuelCountdownProps) {
   const timerColor = secsLeft <= 10 ? 'var(--sandy-brown)' : 'var(--sage-green)';
 
   return (
-    <div className="min-h-screen px-4 py-6 max-w-4xl mx-auto" style={{ color: 'var(--foreground)' }}>
+    <div className="min-h-screen px-3 sm:px-4 py-5 sm:py-6 max-w-4xl mx-auto" style={{ color: 'var(--foreground)' }}>
       {/* VS header */}
-      <div className="rounded-2xl p-4 mb-5 flex items-center gap-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="flex-1 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+      <div className="rounded-2xl p-3 sm:p-4 mb-4 sm:mb-5 flex items-center gap-3 sm:gap-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex-1 flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-lg sm:text-xl flex-shrink-0"
             style={{ background: 'rgba(108,174,117,0.15)', border: '1px solid rgba(108,174,117,0.3)' }}>🏏</div>
           <div>
             <div className="text-[9px] uppercase font-black tracking-widest" style={{ color: 'var(--sage-green)' }}>You</div>
-            <div className="text-sm font-black">{myName}</div>
+            <div className="text-xs sm:text-sm font-black truncate max-w-[100px] sm:max-w-none">{myName}</div>
           </div>
         </div>
-        <Swords className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--sandy-brown)' }} />
-        <div className="flex-1 flex items-center justify-end gap-3">
+        <Swords className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" style={{ color: 'var(--sandy-brown)' }} />
+        <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3">
           <div className="text-right">
             <div className="text-[9px] uppercase font-black tracking-widest" style={{ color: 'var(--sandy-brown)' }}>Opponent</div>
-            <div className="text-sm font-black">{oppName}</div>
+            <div className="text-xs sm:text-sm font-black truncate max-w-[100px] sm:max-w-none">{oppName}</div>
           </div>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-lg sm:text-xl flex-shrink-0"
             style={{ background: 'rgba(245,166,91,0.15)', border: '1px solid rgba(245,166,91,0.3)' }}>🎯</div>
         </div>
 
@@ -206,33 +206,33 @@ export default function DuelCountdown({ match, myUserId }: DuelCountdownProps) {
       </div>
 
       {/* Player pool — with mini stats */}
-      <div className="rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="rounded-2xl p-3 sm:p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="text-[9px] uppercase font-black tracking-widest mb-1" style={{ color: 'var(--palm-leaf)' }}>
           Draft Pool — {pool.length} Players
         </div>
-        <div className="text-xs mb-4" style={{ color: 'var(--muted)' }}>
+        <div className="text-xs mb-3 sm:mb-4" style={{ color: 'var(--muted)' }}>
           Study the pool before the draft starts. <span style={{ color: 'var(--sandy-brown)' }}>BOWL</span> = eligible bowler.
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1 sm:gap-1.5">
           {pool.map((p: PoolPlayer, i: number) => {
             const s = poolStats.get(p.name);
             return (
               <div key={i}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg"
                 style={{
                   background: p.can_bowl ? 'rgba(245,166,91,0.07)' : 'var(--surface-2)',
                   border: `1px solid ${p.can_bowl ? 'rgba(245,166,91,0.25)' : 'var(--border)'}`,
                 }}>
                 <span className="text-[11px] flex-shrink-0">{teamFlag([p.team])}</span>
                 <span className="flex-1 text-xs font-black truncate">{dn(p.name, cn)}</span>
-                {/* Stats inline */}
+                {/* Stats inline — hide some on mobile */}
                 {s && (
-                  <div className="flex items-center gap-3 flex-shrink-0 mr-1">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 mr-1">
                     <div className="flex flex-col items-center leading-none">
                       <span className="text-[7px] uppercase font-black" style={{ color: 'var(--palm-leaf)' }}>R</span>
                       <span className="text-[11px] font-black font-mono" style={{ color: 'var(--sage-green)' }}>{s.runs}</span>
                     </div>
-                    <div className="flex flex-col items-center leading-none">
+                    <div className="hidden sm:flex flex-col items-center leading-none">
                       <span className="text-[7px] uppercase font-black" style={{ color: 'var(--palm-leaf)' }}>SR</span>
                       <span className="text-[11px] font-black font-mono" style={{ color: 'var(--sage-green)' }}>{s.sr.toFixed(0)}</span>
                     </div>
@@ -243,7 +243,7 @@ export default function DuelCountdown({ match, myUserId }: DuelCountdownProps) {
                       </div>
                     )}
                     {s.eco !== null && (
-                      <div className="flex flex-col items-center leading-none">
+                      <div className="hidden sm:flex flex-col items-center leading-none">
                         <span className="text-[7px] uppercase font-black" style={{ color: 'var(--palm-leaf)' }}>Eco</span>
                         <span className="text-[11px] font-black font-mono" style={{ color: 'var(--sandy-brown)' }}>{s.eco.toFixed(1)}</span>
                       </div>

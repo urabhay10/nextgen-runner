@@ -86,7 +86,7 @@ const BowlingOrderEditor = ({
   );
 
   return (
-    <div className="bg-[rgba(var(--surface-rgb),0.5)] p-6 rounded-2xl border border-[var(--border)]">
+    <div className="bg-[rgba(var(--surface-rgb),0.5)] p-4 sm:p-6 rounded-2xl border border-[var(--border)]">
       <div className="flex justify-between items-center mb-4">
         <div className="flex flex-col">
           <h3 className="text-lg font-bold text-[var(--muted)]">

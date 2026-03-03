@@ -57,10 +57,10 @@ export default function DuelResults({ match, myUserId, result, scorecard }: Duel
   }
 
   return (
-    <div className="min-h-screen px-4 py-6 max-w-3xl mx-auto" style={{ color: 'var(--foreground)' }}>
+    <div className="min-h-screen px-3 sm:px-4 py-5 sm:py-6 max-w-3xl mx-auto" style={{ color: 'var(--foreground)' }}>
 
       {/* ── Result banner ─────────────────────────────────────────────────── */}
-      <div className="rounded-3xl p-8 mb-6 text-center relative overflow-hidden" style={{
+      <div className="rounded-2xl sm:rounded-3xl p-5 sm:p-8 mb-5 sm:mb-6 text-center relative overflow-hidden" style={{
         background: isTie
           ? 'var(--surface)'
           : iWon
@@ -70,27 +70,27 @@ export default function DuelResults({ match, myUserId, result, scorecard }: Duel
       }}>
         <div className="text-[9px] uppercase font-black tracking-widest mb-1" style={{ color: 'var(--muted)' }}>Match Result</div>
         {isTie ? (
-          <div className="text-2xl font-black">It&apos;s a Tie!</div>
+          <div className="text-xl sm:text-2xl font-black">It&apos;s a Tie!</div>
         ) : (
           <>
-            <div className="text-2xl font-black" style={{ color: iWon ? 'var(--sage-green)' : 'var(--sandy-brown)' }}>
+            <div className="text-xl sm:text-2xl font-black" style={{ color: iWon ? 'var(--sage-green)' : 'var(--sandy-brown)' }}>
               {iWon ? 'You Won!' : `${result.winner} Wins!`}
             </div>
             <div className="text-sm mt-1" style={{ color: 'var(--muted)' }}>by {result.margin}</div>
           </>
         )}
         {/* Scores */}
-        <div className="flex justify-center gap-6 mt-5">
+        <div className="flex justify-center gap-4 sm:gap-6 mt-4 sm:mt-5">
           <div className="text-center">
             <div className="text-[9px] uppercase font-black tracking-widest mb-0.5" style={{ color: 'var(--muted)' }}>{result.batting_first}</div>
-            <div className="text-xl font-black font-mono" style={{ color: 'var(--sage-green)' }}>{result.score1}</div>
+            <div className="text-lg sm:text-xl font-black font-mono" style={{ color: 'var(--sage-green)' }}>{result.score1}</div>
           </div>
-          <div className="flex items-center"><Swords className="w-5 h-5" style={{ color: 'var(--sandy-brown)' }} /></div>
+          <div className="flex items-center"><Swords className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: 'var(--sandy-brown)' }} /></div>
           <div className="text-center">
             <div className="text-[9px] uppercase font-black tracking-widest mb-0.5" style={{ color: 'var(--muted)' }}>
               {teams.find(t => t !== result.batting_first) ?? ''}
             </div>
-            <div className="text-xl font-black font-mono" style={{ color: 'var(--sandy-brown)' }}>{result.score2}</div>
+            <div className="text-lg sm:text-xl font-black font-mono" style={{ color: 'var(--sandy-brown)' }}>{result.score2}</div>
           </div>
         </div>
       </div>

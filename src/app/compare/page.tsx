@@ -10,8 +10,12 @@ import { fetchModels, getApiUrl } from '@/lib/api';
 import { Model, SlottedPlayer } from '@/types';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function makeSlots(names: string[], prefix: string): SlottedPlayer[] {
-  return Array.from({ length: 11 }, (_, i) => ({ uid: `${prefix}_${i}`, name: names[i] ?? '' }));
+function makeSlots(names: string[], prefix: string, baseGameId: number = 0): SlottedPlayer[] {
+  return Array.from({ length: 11 }, (_, i) => ({ uid: `${prefix}_${i}`, name: names[i] ?? '', gameId: baseGameId + i }));
+}
+
+function slotsToUidOrder(slots: number[], players: SlottedPlayer[]): string[] {
+  return slots.map(i => players[i]?.uid ?? '');
 }
 
 function namesToUidOrder(names: string[], players: SlottedPlayer[]): string[] {
@@ -34,15 +38,16 @@ export default function CompareModels() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
-  const [playerIdMap, setPlayerIdMap] = useState<Record<string, string | number>>({});
+  // Maps game ID (0–21) → database player ID
+  const [playerIdMap, setPlayerIdMap] = useState<Record<number, string | number>>({});
   
   const [team1, setTeam1] = useState({ 
       name: "India", 
-      players: makeSlots(["Rohit Sharma","Virat Kohli","Rishabh Pant","Suryakumar Yadav","Shivam Dube","Hardik Pandya","Ravindra Jadeja","Axar Patel","Kuldeep Yadav","Jasprit Bumrah","Arshdeep Singh"], 't1'),
+      players: makeSlots(["Rohit Sharma","Virat Kohli","Rishabh Pant","Suryakumar Yadav","Shivam Dube","Hardik Pandya","Ravindra Jadeja","Axar Patel","Kuldeep Yadav","Jasprit Bumrah","Arshdeep Singh"], 't1', 0),
   });
   const [team2, setTeam2] = useState({ 
       name: "Australia", 
-      players: makeSlots(["David Warner","Travis Head","Mitchell Marsh","Glenn Maxwell","Marcus Stoinis","Tim David","Matthew Wade","Pat Cummins","Mitchell Starc","Adam Zampa","Josh Hazlewood"], 't2'),
+      players: makeSlots(["David Warner","Travis Head","Mitchell Marsh","Glenn Maxwell","Marcus Stoinis","Tim David","Matthew Wade","Pat Cummins","Mitchell Starc","Adam Zampa","Josh Hazlewood"], 't2', 11),
   });
 
   // Advanced State
@@ -99,7 +104,9 @@ export default function CompareModels() {
       });
       if (!res.ok) throw new Error('Failed to generate bowling order');
       const data = await res.json();
-      if (data.bowling_order) {
+      if (data.bowling_order_indices) {
+        setOrder(slotsToUidOrder(data.bowling_order_indices, team.players));
+      } else if (data.bowling_order) {
         setOrder(namesToUidOrder(data.bowling_order, team.players));
       }
     } catch (e) {
@@ -217,7 +224,7 @@ export default function CompareModels() {
               value={p.name}
               index={i}
               onChange={v => updatePlayer(1, i, v)}
-              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [name]: id })); }}
+              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [team1.players[i].gameId]: id })); }}
               onBulkPaste={values => bulkPastePlayer(1, i, values)}
               placeholder={`Player ${i + 1}`}
             />
@@ -255,7 +262,7 @@ export default function CompareModels() {
               value={p.name}
               index={i}
               onChange={v => updatePlayer(2, i, v)}
-              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [name]: id })); }}
+              onSelectPlayer={(name, id) => { if (id != null) setPlayerIdMap(prev => ({ ...prev, [team2.players[i].gameId]: id })); }}
               onBulkPaste={values => bulkPastePlayer(2, i, values)}
               placeholder={`Player ${i + 1}`}
             />
@@ -373,7 +380,8 @@ export default function CompareModels() {
             key={model.id} 
             model={model} 
             start={true}
-            playerIdMap={playerIdMap}
+            gameIdMap={playerIdMap}
+            allPlayers={[...team1.players, ...team2.players]}
             payload={{
                team1_name: team1.name,
                team1_players: team1.players.map(p => p.name),

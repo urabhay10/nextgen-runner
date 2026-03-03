@@ -95,44 +95,51 @@ const SeriesSummary = ({ data, isExpanded = false, onToggleExpand }: SeriesSumma
       }, 0) / (matches.length * 2))
     : 0;
 
+  // Helper: build a unique key for a batting entry that avoids merging duplicates.
+  // Uses "name#position" within a team scorecard so two Kohlis stay separate.
+  const makeBatKey = (teamKey: string, pos: number, name: string) => `${teamKey}::${name}::${pos}`;
+
   const topRunScorer = matches.length > 0 ? (() => {
-      const players: Record<string, number> = {};
+      const players: Record<string, { name: string; runs: number }> = {};
       matches.forEach(m => {
-          Object.values(m.scorecard).forEach((team: any) => {
-              team.batting.forEach((p: any) => {
-                  players[p.name] = (players[p.name] || 0) + p.runs;
+          Object.entries(m.scorecard).forEach(([teamKey, team]: [string, any]) => {
+              team.batting.forEach((p: any, pos: number) => {
+                  const key = makeBatKey(teamKey, pos, p.name);
+                  if (!players[key]) players[key] = { name: p.name, runs: 0 };
+                  players[key].runs += p.runs;
               });
           });
       });
-      const sorted = Object.entries(players).sort(([,a], [,b]) => b - a);
-      return sorted.length > 0 ? { name: sorted[0][0], runs: sorted[0][1] } : null;
+      const sorted = Object.values(players).sort((a, b) => b.runs - a.runs);
+      return sorted.length > 0 ? sorted[0] : null;
   })() : null;
 
-  // Calculate Top 5 Batters
+  // Calculate Top 5 Batters — keyed by team+position so duplicates stay separate
   const topBatters = matches.length > 0 ? (() => {
-      const players: Record<string, {runs: number, balls: number, innings: number, dismissals: number}> = {};
+      const players: Record<string, {name: string, runs: number, balls: number, innings: number, dismissals: number}> = {};
       matches.forEach(m => {
-          Object.values(m.scorecard).forEach((team: any) => {
-              team.batting.forEach((p: any) => {
-                  if (!players[p.name]) players[p.name] = {runs: 0, balls: 0, innings: 0, dismissals: 0};
-                  players[p.name].runs += p.runs;
-                  players[p.name].balls += p.balls;
-                  players[p.name].innings += 1;
-                  if (p.out) players[p.name].dismissals += 1;
+          Object.entries(m.scorecard).forEach(([teamKey, team]: [string, any]) => {
+              team.batting.forEach((p: any, pos: number) => {
+                  const key = makeBatKey(teamKey, pos, p.name);
+                  if (!players[key]) players[key] = {name: p.name, runs: 0, balls: 0, innings: 0, dismissals: 0};
+                  players[key].runs += p.runs;
+                  players[key].balls += p.balls;
+                  players[key].innings += 1;
+                  if (p.out) players[key].dismissals += 1;
               });
           });
       });
-      return Object.entries(players)
-          .sort(([,a], [,b]) => b.runs - a.runs)
+      return Object.values(players)
+          .sort((a, b) => b.runs - a.runs)
           .slice(0, isExpanded ? 10 : 5)
-          .map(([name, stats]) => {
+          .map((stats) => {
               const avg = stats.dismissals > 0 ? (stats.runs / stats.dismissals).toFixed(1) : stats.runs.toString();
               const sr = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : "0.0";
-              return { name, ...stats, avg, sr };
+              return { ...stats, avg, sr };
           });
   })() : [];
 
-  // Calculate Top 5 Bowlers
+  // Calculate Top 5 Bowlers — keyed by name (bowlers don't duplicate within a team typically)
   const topBowlers = matches.length > 0 ? (() => {
       const players: Record<string, {wickets: number, runs: number, balls: number, innings: number}> = {};
       matches.forEach(m => {

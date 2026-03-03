@@ -47,7 +47,6 @@ interface DuelMatch {
   winner_user_id?: string | null;
   abandon_reason?: string | null;
   completed_at?: string | null;
-  sim_speed?: 'slow' | 'moderate' | 'max';
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -67,7 +66,11 @@ export default function DuelMatchPage() {
   const [error, setError]     = useState<string | null>(null);
   const [simulationResult, setSimulationResult] = useState<any>(null);
   const [simulationScorecard, setSimulationScorecard] = useState<any>(null);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const channelRef      = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  // Once DuelSimulation is ever rendered in this session, keep it mounted so
+  // results appear inline even if the realtime subscription updates the status
+  // to 'completed' before the match_complete event fires on the frontend.
+  const everSimulatedRef = useRef(false);
 
   // ── Fetch match ─────────────────────────────────────────────────────────────
   const fetchMatch = useCallback(async () => {
@@ -123,9 +126,9 @@ export default function DuelMatchPage() {
   const handleSimulationComplete = useCallback((result: any, scorecard: any) => {
     setSimulationResult(result);
     setSimulationScorecard(scorecard);
-    // Fetch final match state (which should now be 'completed')
-    fetchMatch();
-  }, [fetchMatch]);
+    // Do NOT fetchMatch() here — DuelSimulation now shows results inline.
+    // A background fetch happens via the realtime subscription anyway.
+  }, []);
 
   // ── Guard: spectator (not signed in, or not one of the two players) ────────
   // Once loading is done, determine spectator status definitively
@@ -176,6 +179,18 @@ export default function DuelMatchPage() {
 
     // Completed — show neutral results (winner name, not "You Won")
     if (match.status === 'completed') {
+      // If spectator watched live (DuelSimulation was mounted), keep it so
+      // inline results render correctly.
+      if (everSimulatedRef.current) {
+        return (
+          <DuelSimulation
+            match={match}
+            myUserId={match.player1_user_id}
+            onComplete={handleSimulationComplete}
+            spectator
+          />
+        );
+      }
       const result    = simulationResult   ?? match.result;
       const scorecard = simulationScorecard ?? match.scorecard;
       if (!result || !scorecard) {
@@ -191,6 +206,7 @@ export default function DuelMatchPage() {
 
     // In progress — live simulation in spectator mode
     if (match.status === 'in_progress') {
+      everSimulatedRef.current = true;
       return (
         <DuelSimulation
           match={match}
@@ -223,8 +239,24 @@ export default function DuelMatchPage() {
 
   // ── Results ─────────────────────────────────────────────────────────────────
   if (match.status === 'completed') {
-    // If we have in-memory result from simulation, prefer it; otherwise use stored
-    const result   = simulationResult   ?? match.result;
+    // If we started watching the simulation in this browser session, keep
+    // DuelSimulation mounted — it renders inline results once the
+    // match_complete event drains through the queue.
+    // This avoids the race condition where the DB status flips to 'completed'
+    // before the frontend has processed the match_complete event.
+    if (everSimulatedRef.current) {
+      return (
+        <DuelSimulation
+          match={match}
+          myUserId={effectiveUserId}
+          onComplete={handleSimulationComplete}
+        />
+      );
+    }
+
+    // Fresh page-load (user navigated here after the match ended) — show the
+    // static results page directly.
+    const result    = simulationResult   ?? match.result;
     const scorecard = simulationScorecard ?? match.scorecard;
 
     if (!result || !scorecard) {
@@ -247,6 +279,10 @@ export default function DuelMatchPage() {
 
   // ── Simulation ──────────────────────────────────────────────────────────────
   if (match.status === 'in_progress') {
+    // Mark that this browser session has started watching the simulation.
+    // This ref persists across re-renders so the completed branch below can
+    // keep DuelSimulation mounted even after status flips to 'completed'.
+    everSimulatedRef.current = true;
     return (
       <DuelSimulation
         match={match}
