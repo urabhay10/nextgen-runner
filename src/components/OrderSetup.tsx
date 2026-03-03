@@ -425,7 +425,7 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
           ) : (
             <BowlingOrderEditor
               teamName={myDisplayName}
-              players={myTeam.map((p): SlottedPlayer => ({ uid: p.name, name: dn(p.name, cn) }))}
+              players={myTeam.map((p, i): SlottedPlayer => ({ uid: p.name, name: dn(p.name, cn), gameId: i }))}
               eligibleBowlers={eligibleNames.map(n => dn(n, cn))}
               bowlingOrder={bowlingOrder}
               onOrderChange={setBowlingOrder}
