@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Zap, Activity, TrendingUp, Target, Award, MapPin } from 'lucide-react';
-import { getV2ApiUrl } from '@/lib/api_v2';
+import { getApiUrl } from '@/lib/api';
 import { FLAG } from '@/lib/flags';
 
 function teamFlag(team: string) {
@@ -92,7 +92,7 @@ export default function PlayerPage() {
     
     const fetchStats = async () => {
       try {
-        const res = await fetch(getV2ApiUrl(`/stats/player/${id}`), { cache: 'no-store' });
+        const res = await fetch(getApiUrl(`/stats/player/${id}`), { cache: 'no-store' });
         if (!res.ok) throw new Error('Failed to fetch player stats');
         const data = await res.json();
         setData(data);

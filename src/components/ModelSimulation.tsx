@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { Model, BallEvent, MatchDetail, SeriesSummaryData, SlottedPlayer } from '@/types';
 import { getApiUrl } from '@/lib/api';
 import ScoreCardLive from './ScoreCardLive';
@@ -16,14 +17,18 @@ interface ModelSimulationProps {
   gameIdMap?: Record<number, string | number>;
   /** All players (both teams) for game ID resolution. */
   allPlayers?: SlottedPlayer[];
+  /** Override URL resolver — defaults to v1 getApiUrl. */
+  apiUrlFn?: (path: string) => string;
 }
 
-export default function ModelSimulation({ model, payload, start, playerIdMap, gameIdMap, allPlayers }: ModelSimulationProps) {
+export default function ModelSimulation({ model, payload, start, playerIdMap, gameIdMap, allPlayers, apiUrlFn }: ModelSimulationProps) {
+  const resolveUrl = apiUrlFn ?? getApiUrl;
   const [matchDetail, setMatchDetail] = useState<BallEvent | null>(null);
   const [completedMatches, setCompletedMatches] = useState<any[]>([]);
   const [liveSummary, setLiveSummary] = useState<any>(null);
   const [seriesComplete, setSeriesComplete] = useState<SeriesSummaryData | null>(null);
   const [status, setStatus] = useState<'idle' | 'running' | 'complete' | 'error'>('idle');
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
   const simulationIdRef = useRef(0);
   // Throttle live scorecard: only re-render every 10 balls to avoid per-ball React overhead
   const ballCountRef = useRef(0);
@@ -46,7 +51,7 @@ export default function ModelSimulation({ model, payload, start, playerIdMap, ga
       try {
         const fullPayload = { ...payload, model: model.id };
         const endpoint = fullPayload.team1_bowling_order ? '/simulate_custom_match' : '/simulate_series_stream';
-        const response = await fetch(getApiUrl(endpoint), {
+        const response = await fetch(resolveUrl(endpoint), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(fullPayload),
@@ -137,37 +142,83 @@ export default function ModelSimulation({ model, payload, start, playerIdMap, ga
   }, [start, model, payload]);
 
   return (
-    <div className="rounded-xl border overflow-hidden flex flex-col h-full" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-      <div className="p-3 border-b flex justify-between items-center" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
-        <h3 className="font-bold text-white text-sm">{model.name}</h3>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${status === 'running' ? 'animate-pulse' : ''}`}
-          style={{
-            background: status === 'running' ? 'rgba(var(--sage-green-rgb), 0.2)' : status === 'complete' ? 'rgba(var(--sandy-brown-rgb), 0.2)' : 'var(--surface)',
-            color: status === 'running' ? 'var(--sage-green)' : status === 'complete' ? 'var(--sandy-brown)' : 'var(--muted)'
-          }}
-        >
-          {status.toUpperCase()}
-        </span>
-      </div>
-      
-      <div className="p-4 flex-1 flex flex-col gap-4 overflow-hidden">
-        {matchDetail ? (
-           <div className="flex-none scale-90 origin-top-left w-[111%] -mb-4">
-             <ScoreCardLive detail={matchDetail} live={status === 'running'} playerIdMap={playerIdMap} gameIdMap={gameIdMap} allPlayers={allPlayers} />
-           </div>
-        ) : (
-            <div className="flex-1 flex items-center justify-center text-xs font-mono" style={{ color: 'var(--muted)' }}>
-                {status === 'running' ? 'Starting...' : 'Waiting to start...'}
-            </div>
-        )}
+    <>
+      <div className="rounded-xl border overflow-hidden flex flex-col h-full" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div className="p-3 border-b flex justify-between items-center" style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+          <h3 className="font-bold text-white text-sm">{model.name}</h3>
+          <div className="flex items-center gap-2">
+            {(liveSummary || seriesComplete) && (
+              <button
+                onClick={() => setSummaryExpanded(e => !e)}
+                className="p-1 rounded-lg transition hover:bg-[var(--surface)] opacity-60 hover:opacity-100"
+                title={summaryExpanded ? 'Collapse summary' : 'Fullscreen summary'}
+                style={{ color: 'var(--muted)' }}
+              >
+                {summaryExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              </button>
+            )}
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${status === 'running' ? 'animate-pulse' : ''}`}
+              style={{
+                background: status === 'running' ? 'rgba(var(--sage-green-rgb), 0.2)' : status === 'complete' ? 'rgba(var(--sandy-brown-rgb), 0.2)' : 'var(--surface)',
+                color: status === 'running' ? 'var(--sage-green)' : status === 'complete' ? 'var(--sandy-brown)' : 'var(--muted)'
+              }}
+            >
+              {status.toUpperCase()}
+            </span>
+          </div>
+        </div>
         
-        {/* Live summary — shown during running AND after complete */}
-        {(liveSummary || seriesComplete) && (
-            <div className="flex-1 min-h-0 overflow-hidden mt-2">
-                <SeriesSummary data={seriesComplete ? {...seriesComplete, matches: completedMatches} : liveSummary} />
+        <div className="p-4 flex-1 flex flex-col gap-4 overflow-hidden">
+          {matchDetail ? (
+            <div className="flex-none scale-90 origin-top-left w-[111%] -mb-4">
+              <ScoreCardLive detail={matchDetail} live={status === 'running'} playerIdMap={playerIdMap} gameIdMap={gameIdMap} allPlayers={allPlayers} />
             </div>
-        )}
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-xs font-mono" style={{ color: 'var(--muted)' }}>
+              {status === 'running' ? 'Starting...' : 'Waiting to start...'}
+            </div>
+          )}
+          
+          {/* Live summary — shown during running AND after complete */}
+          {(liveSummary || seriesComplete) && (
+            <div className="flex-1 min-h-0 overflow-hidden mt-2">
+              <SeriesSummary data={seriesComplete ? {...seriesComplete, matches: completedMatches} : liveSummary} />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* Fullscreen overlay */}
+      {summaryExpanded && (liveSummary || seriesComplete) && (
+        <>
+          <div
+            className="fixed inset-0 bg-[rgba(var(--background-rgb),0.85)] backdrop-blur-sm z-40"
+            onClick={() => setSummaryExpanded(false)}
+          />
+          <div
+            className="fixed inset-4 sm:inset-8 z-50 rounded-2xl border overflow-auto"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <div className="sticky top-0 flex items-center justify-between px-5 py-3 border-b z-10"
+              style={{ background: 'var(--surface-2)', borderColor: 'var(--border)' }}>
+              <span className="text-sm font-black" style={{ color: 'var(--foreground)' }}>{model.name} · Series Summary</span>
+              <button
+                onClick={() => setSummaryExpanded(false)}
+                className="p-1.5 rounded-lg transition hover:bg-[var(--surface)]"
+                style={{ color: 'var(--muted)' }}
+              >
+                <Minimize2 className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4">
+              <SeriesSummary
+                data={seriesComplete ? {...seriesComplete, matches: completedMatches} : liveSummary}
+                isExpanded
+              />
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }

@@ -74,6 +74,17 @@ const ScoreCardLive = ({ detail, live, playerIdMap, gameIdMap, allPlayers }: Sco
               <div className="text-center">
                 <div className="text-[10px] uppercase text-[var(--muted)] font-bold tracking-widest mb-1">RRR</div>
                 <div className="text-xl md:text-2xl font-mono text-[var(--sandy-brown)] font-bold">{rrr}</div>
+                {(() => {
+                  const runsNeeded = target - total_runs;
+                  const ballsRem = 120 - ballsDone;
+                  if (runsNeeded > 0 && ballsRem > 0) {
+                    return <div className="text-[10px] font-bold mt-0.5" style={{ color: 'var(--foreground)' }}>need {runsNeeded} off {ballsRem}</div>;
+                  }
+                  if (runsNeeded <= 0) {
+                    return <div className="text-[10px] font-bold mt-0.5" style={{ color: 'var(--sage-green)' }}>target reached 🏏</div>;
+                  }
+                  return null;
+                })()}
               </div>
             </>
           )}

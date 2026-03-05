@@ -17,7 +17,7 @@ const BallPredictor = ({ onBack }: BallPredictorProps) => {
     innings: 1,
     over: 19,
     ball: 1,
-    total_runs: 150,
+    total_runs: 30,
     wickets: 4,
     striker_name: "Virat Kohli",
     bowler_name: "Mitchell Starc",

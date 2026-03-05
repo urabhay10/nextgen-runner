@@ -23,7 +23,7 @@ const DIVISORS_30 = [10, 6, 5, 3, 2, 1] as const;
 /**
  * Pick the column count (a divisor of 30) that best fills
  * containerW × containerH without overflowing.
- * Target card aspect ratio: width/height between 0.55 – 1.9.
+ * Target card aspect ratio: width/height between 0.55 - 1.9.
  */
 function bestCols(containerW: number, containerH: number): number {
   for (const cols of DIVISORS_30) {

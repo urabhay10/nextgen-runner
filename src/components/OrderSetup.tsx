@@ -13,6 +13,7 @@ interface PoolPlayer { name: string; team: string; can_bowl: boolean; }
 interface OrderSetupProps {
   match: any;
   myUserId: string;
+  apiUrlFn?: (path: string) => string;
 }
 
 function useCountdown(deadlineIso: string | null) {
@@ -54,7 +55,7 @@ function buildDefaultBowlingOrder(eligibleNames: string[]): string[] {
   return order;
 }
 
-export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
+export default function OrderSetup({ match, myUserId, apiUrlFn = getApiUrl }: OrderSetupProps) {
   const isP1 = match.player1_user_id === myUserId;
   const myTeam: PoolPlayer[] = (isP1 ? match.player1_team : match.player2_team) ?? [];
   const myReadyKey = isP1 ? 'player1_orders_ready' : 'player2_orders_ready';
@@ -99,7 +100,7 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
     if (eligibleNames.length < 5) return;
     setLoadingDefault(true);
     try {
-      const res = await fetch(getApiUrl('/generate_bowling_order'), {
+      const res = await fetch(apiUrlFn('/generate_bowling_order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ players: eligibleNames }),
@@ -164,7 +165,7 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
       const saved = lastValidOrderRef.current;
       if (saved) {
         // silently submit last valid order
-        fetch(getApiUrl(`/duel/match/${match.id}/orders`), {
+        fetch(apiUrlFn(`/duel/match/${match.id}/orders`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -194,7 +195,7 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
     }
     setSubmitting(true);
     try {
-      const res = await fetch(getApiUrl(`/duel/match/${match.id}/orders`), {
+      const res = await fetch(apiUrlFn(`/duel/match/${match.id}/orders`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -255,6 +256,12 @@ export default function OrderSetup({ match, myUserId }: OrderSetupProps) {
           <div className="text-[9px] uppercase font-black tracking-widest mb-1" style={{ color: 'var(--palm-leaf)' }}>Order Setup</div>
           <div className="text-base font-black">Set your batting &amp; bowling order</div>
           <div className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Auto-submitted when timer runs out</div>
+          {match.result?.venue_name && match.result.venue_name !== 'Unknown Venue' && (
+            <div className="flex items-center gap-1 mt-1.5">
+              <span className="text-xs">📍</span>
+              <span className="text-xs font-bold" style={{ color: 'var(--sage-green)' }}>{match.result.venue_name}</span>
+            </div>
+          )}
         </div>
         {/* Timer ring */}
         <div className="flex flex-col items-center flex-shrink-0">

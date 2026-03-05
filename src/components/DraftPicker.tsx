@@ -19,6 +19,7 @@ interface PlayerMiniStats {
 interface DraftPickerProps {
   match: any;
   myUserId: string;
+  apiUrlFn?: (path: string) => string;
 }
 
 // Divisors of 30 ordered by preference (most cols first so rows are fewer)
@@ -27,7 +28,7 @@ const DIVISORS_30 = [10, 6, 5, 3, 2, 1] as const;
 /**
  * Pick the column count (a divisor of 30) that best fills
  * containerW × containerH without overflowing.
- * Target card aspect ratio: width/height between 0.55 – 1.9.
+ * Target card aspect ratio: width/height between 0.55 - 1.9.
  */
 function bestCols(containerW: number, containerH: number): number {
   for (const cols of DIVISORS_30) {
@@ -164,7 +165,7 @@ function PoolCard({ p, taken, isMyTurn, picking, onClick, stats, cn }: PoolCardP
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
+export default function DraftPicker({ match, myUserId, apiUrlFn = getApiUrl }: DraftPickerProps) {
   const [picking, setPicking]         = useState(false);
   const [pickError, setPickError]     = useState<string | null>(null);
   // 'none' | 'mine' | 'opp'  — which mobile team panel is open
@@ -199,7 +200,7 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
     Promise.all(
       pool.map(async (p: PoolPlayer) => {
         try {
-          const res = await fetch(getApiUrl(`/stats/${encodeURIComponent(p.name)}`), { cache: 'force-cache' });
+          const res = await fetch(apiUrlFn(`/stats/${encodeURIComponent(p.name)}`), { cache: 'force-cache' });
           if (!res.ok) return [p.name, null] as const;
           const data = await res.json();
           return [p.name, {
@@ -261,7 +262,7 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
     setPickError(null);
     setPicking(true);
     try {
-      const res = await fetch(getApiUrl(`/duel/match/${match.id}/pick`), {
+      const res = await fetch(apiUrlFn(`/duel/match/${match.id}/pick`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: myUserId, player_name: playerName }),
@@ -377,6 +378,15 @@ export default function DraftPicker({ match, myUserId }: DraftPickerProps) {
                   </span>}
             </div>
           </div>
+
+          {/* Venue badge */}
+          {match.result?.venue_name && match.result.venue_name !== 'Unknown Venue' && (
+            <div className="hidden sm:flex items-center gap-1 flex-shrink-0 px-2 py-1 rounded-lg"
+              style={{ background: 'rgba(var(--sage-green-rgb),0.07)', border: '1px solid rgba(var(--sage-green-rgb),0.2)' }}>
+              <span className="text-[10px]">📍</span>
+              <span className="text-[9px] font-bold truncate max-w-[120px] md:max-w-[200px]">{match.result.venue_name}</span>
+            </div>
+          )}
 
           {/* Progress */}
           <div className="hidden sm:flex flex-col items-center gap-0.5 flex-shrink-0">

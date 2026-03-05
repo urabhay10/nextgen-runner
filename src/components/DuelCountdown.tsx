@@ -13,16 +13,24 @@ interface PlayerMiniStats { runs: number; sr: number; wkts: number | null; eco: 
 interface DuelCountdownProps {
   match: any;
   myUserId: string;
+  apiUrlFn?: (path: string) => string;
 }
 
 const COUNTDOWN_SECS = 35;
 
-export default function DuelCountdown({ match, myUserId }: DuelCountdownProps) {
+/** Compute seconds remaining until a deadline ISO string. Returns 0 if past. */
+function secsUntil(deadline: string | null | undefined): number {
+  if (!deadline) return COUNTDOWN_SECS;
+  const diff = Math.round((new Date(deadline).getTime() - Date.now()) / 1000);
+  return Math.max(0, diff);
+}
+
+export default function DuelCountdown({ match, myUserId, apiUrlFn = getApiUrl }: DuelCountdownProps) {
   const isP1 = match.player1_user_id === myUserId;
   const myName  = isP1 ? match.player1_display_name : match.player2_display_name;
   const oppName = isP1 ? match.player2_display_name : match.player1_display_name;
 
-  const [secsLeft, setSecsLeft] = useState(COUNTDOWN_SECS);
+  const [secsLeft, setSecsLeft] = useState(() => secsUntil(match.countdown_deadline));
   const [myReady, setMyReady]     = useState(false);
   const [oppReady, setOppReady]   = useState(false);
   const [starting, setStarting]   = useState(false);
@@ -41,7 +49,7 @@ export default function DuelCountdown({ match, myUserId }: DuelCountdownProps) {
     Promise.all(
       pool.map(async (p: PoolPlayer) => {
         try {
-          const res = await fetch(getApiUrl(`/stats/${encodeURIComponent(p.name)}`), { cache: 'force-cache' });
+          const res = await fetch(apiUrlFn(`/stats/${encodeURIComponent(p.name)}`), { cache: 'force-cache' });
           if (!res.ok) return [p.name, null] as const;
           const data = await res.json();
           return [p.name, {
@@ -62,9 +70,10 @@ export default function DuelCountdown({ match, myUserId }: DuelCountdownProps) {
 
   // ── Countdown timer ──────────────────────────────────────────────────
   useEffect(() => {
-    const id = setInterval(() => setSecsLeft(s => Math.max(0, s - 1)), 1000);
+    const deadline = match.countdown_deadline;
+    const id = setInterval(() => setSecsLeft(secsUntil(deadline)), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [match.countdown_deadline]);
 
   // ── Supabase broadcast channel ────────────────────────────────────────
   useEffect(() => {
@@ -83,7 +92,7 @@ export default function DuelCountdown({ match, myUserId }: DuelCountdownProps) {
     if (starting) return;
     setStarting(true);
     try {
-      await fetch(getApiUrl(`/duel/match/${match.id}/start_draft`), {
+      await fetch(apiUrlFn(`/duel/match/${match.id}/start_draft`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: myUserId, player_name: '' }),
@@ -142,6 +151,18 @@ export default function DuelCountdown({ match, myUserId }: DuelCountdownProps) {
           </span>
         </div>
       </div>
+
+      {/* Venue badge */}
+      {match.result?.venue_name && match.result.venue_name !== 'Unknown Venue' && (
+        <div className="rounded-xl px-3 py-2 mb-4 flex items-center gap-2"
+          style={{ background: 'rgba(var(--sage-green-rgb),0.07)', border: '1px solid rgba(var(--sage-green-rgb),0.25)' }}>
+          <span className="text-sm">📍</span>
+          <div>
+            <div className="text-[8px] uppercase font-black tracking-widest" style={{ color: 'var(--sage-green)' }}>Venue</div>
+            <div className="text-xs font-bold">{match.result.venue_name}</div>
+          </div>
+        </div>
+      )}
 
       {/* Ready status */}
       <div className="flex gap-3 mb-5">

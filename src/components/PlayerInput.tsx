@@ -13,9 +13,12 @@ interface PlayerInputProps {
   onBulkPaste?: (values: string[]) => void;
   placeholder?: string;
   index?: number;
+  /** Override the URL resolver for player search (e.g. v2 API). Defaults to v1 getApiUrl. */
+  apiUrlFn?: (path: string) => string;
 }
 
-const PlayerInput = ({ value, onChange, onSelectPlayer, onBulkPaste, placeholder, index }: PlayerInputProps) => {
+const PlayerInput = ({ value, onChange, onSelectPlayer, onBulkPaste, placeholder, index, apiUrlFn }: PlayerInputProps) => {
+  const resolveUrl = apiUrlFn ?? getApiUrl;
   const [suggestions, setSuggestions] = useState<Player[]>([]);
   const [show, setShow] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -35,7 +38,7 @@ const PlayerInput = ({ value, onChange, onSelectPlayer, onBulkPaste, placeholder
     if (text.length < 1) { setSuggestions([]); setShow(false); return; }
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(getApiUrl(`/players/search?q=${encodeURIComponent(text)}`), { cache: 'no-store' });
+        const res = await fetch(resolveUrl(`/players/search?q=${encodeURIComponent(text)}`), { cache: 'no-store' });
         if (!res.ok) throw new Error('Search failed');
         const data: Player[] = await res.json();
         setSuggestions(data);
@@ -44,17 +47,19 @@ const PlayerInput = ({ value, onChange, onSelectPlayer, onBulkPaste, placeholder
       } catch { /* silent */ }
       finally { setLoading(false); }
     }, 180);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolveUrl]);
 
   const autoMatch = useCallback(async (name: string): Promise<string> => {
     if (!name.trim()) return '';
     try {
-      const res = await fetch(getApiUrl(`/players/search?q=${encodeURIComponent(name.trim())}`), { cache: 'no-store' });
+      const res = await fetch(resolveUrl(`/players/search?q=${encodeURIComponent(name.trim())}`), { cache: 'no-store' });
       if (!res.ok) return '';
       const data: Player[] = await res.json();
       return data.length > 0 ? data[0].name : '';
     } catch { return ''; }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolveUrl]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const text = e.target.value;

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, ArrowLeft, AlertTriangle, Swords } from 'lucide-react';
-import { getApiUrl } from '@/lib/api';
+import { getV2ApiUrl } from '@/lib/api_v2';
 import { supabase } from '@/lib/supabase';
 import DuelCountdown from '@/components/DuelCountdown';
 import DraftPicker from '@/components/DraftPicker';
@@ -36,13 +36,22 @@ interface DuelMatch {
   current_pick_number: number;
   pick_deadline: string | null;
   order_deadline: string | null;
+  countdown_deadline: string | null;
   player1_orders_ready: boolean;
   player2_orders_ready: boolean;
   player1_batting_order: string[];
   player2_batting_order: string[];
   player1_bowling_order: string[];
   player2_bowling_order: string[];
-  result?: any;
+  result?: {
+    winner?: string;
+    margin?: string;
+    score1?: string;
+    score2?: string;
+    batting_first?: string;
+    venue_name?: string;
+    venue_id?: number;
+  } | null;
   scorecard?: any;
   winner_user_id?: string | null;
   abandon_reason?: string | null;
@@ -56,7 +65,7 @@ function getMyUserId(): string | null {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-export default function DuelMatchPage() {
+export default function DuelV2MatchPage() {
   const { matchid } = useParams<{ matchid: string }>();
   const router      = useRouter();
 
@@ -67,15 +76,12 @@ export default function DuelMatchPage() {
   const [simulationResult, setSimulationResult] = useState<any>(null);
   const [simulationScorecard, setSimulationScorecard] = useState<any>(null);
   const channelRef      = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  // Once DuelSimulation is ever rendered in this session, keep it mounted so
-  // results appear inline even if the realtime subscription updates the status
-  // to 'completed' before the match_complete event fires on the frontend.
   const everSimulatedRef = useRef(false);
 
   // ── Fetch match ─────────────────────────────────────────────────────────────
   const fetchMatch = useCallback(async () => {
     try {
-      const res = await fetch(getApiUrl(`/duel/match/${matchid}`));
+      const res = await fetch(getV2ApiUrl(`/duel/match/${matchid}`));
       if (!res.ok) throw new Error('Match not found');
       const data: DuelMatch = await res.json();
       setMatch(data);
@@ -126,12 +132,9 @@ export default function DuelMatchPage() {
   const handleSimulationComplete = useCallback((result: any, scorecard: any) => {
     setSimulationResult(result);
     setSimulationScorecard(scorecard);
-    // Do NOT fetchMatch() here — DuelSimulation now shows results inline.
-    // A background fetch happens via the realtime subscription anyway.
   }, []);
 
-  // ── Guard: spectator (not signed in, or not one of the two players) ────────
-  // Once loading is done, determine spectator status definitively
+  // ── Guard: spectator ────────────────────────────────────────────────────────
   const confirmedSpectator = !loading && match != null && (
     !myId || ![match.player1_user_id, match.player2_user_id].includes(myId)
   );
@@ -159,9 +162,8 @@ export default function DuelMatchPage() {
 
   const effectiveUserId = myId ?? '';
 
-  // ── Spectator: route to read-only views ─────────────────────────────────────
+  // ── Spectator views ─────────────────────────────────────────────────────────
   if (confirmedSpectator) {
-    // Abandoned — same screen for everyone
     if (match.status === 'abandoned') {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center" style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
@@ -177,10 +179,7 @@ export default function DuelMatchPage() {
       );
     }
 
-    // Completed — show neutral results (winner name, not "You Won")
     if (match.status === 'completed') {
-      // If spectator watched live (DuelSimulation was mounted), keep it so
-      // inline results render correctly.
       if (everSimulatedRef.current) {
         return (
           <DuelSimulation
@@ -188,6 +187,7 @@ export default function DuelMatchPage() {
             myUserId={match.player1_user_id}
             onComplete={handleSimulationComplete}
             spectator
+            apiUrlFn={getV2ApiUrl}
           />
         );
       }
@@ -200,11 +200,9 @@ export default function DuelMatchPage() {
           </div>
         );
       }
-      // Pass '' as myUserId — iWon will be false → shows "{winner} Wins!" which is correct for spectator
       return <DuelResults match={match} myUserId="" result={result} scorecard={scorecard} />;
     }
 
-    // In progress — live simulation in spectator mode
     if (match.status === 'in_progress') {
       everSimulatedRef.current = true;
       return (
@@ -213,11 +211,11 @@ export default function DuelMatchPage() {
           myUserId={match.player1_user_id}
           onComplete={handleSimulationComplete}
           spectator
+          apiUrlFn={getV2ApiUrl}
         />
       );
     }
 
-    // countdown / drafting / ordering — dedicated spectator UI
     return <SpectatorView match={match} />;
   }
 
@@ -239,23 +237,17 @@ export default function DuelMatchPage() {
 
   // ── Results ─────────────────────────────────────────────────────────────────
   if (match.status === 'completed') {
-    // If we started watching the simulation in this browser session, keep
-    // DuelSimulation mounted — it renders inline results once the
-    // match_complete event drains through the queue.
-    // This avoids the race condition where the DB status flips to 'completed'
-    // before the frontend has processed the match_complete event.
     if (everSimulatedRef.current) {
       return (
         <DuelSimulation
           match={match}
           myUserId={effectiveUserId}
           onComplete={handleSimulationComplete}
+          apiUrlFn={getV2ApiUrl}
         />
       );
     }
 
-    // Fresh page-load (user navigated here after the match ended) — show the
-    // static results page directly.
     const result    = simulationResult   ?? match.result;
     const scorecard = simulationScorecard ?? match.scorecard;
 
@@ -279,15 +271,13 @@ export default function DuelMatchPage() {
 
   // ── Simulation ──────────────────────────────────────────────────────────────
   if (match.status === 'in_progress') {
-    // Mark that this browser session has started watching the simulation.
-    // This ref persists across re-renders so the completed branch below can
-    // keep DuelSimulation mounted even after status flips to 'completed'.
     everSimulatedRef.current = true;
     return (
       <DuelSimulation
         match={match}
         myUserId={effectiveUserId}
         onComplete={handleSimulationComplete}
+        apiUrlFn={getV2ApiUrl}
       />
     );
   }
@@ -301,7 +291,7 @@ export default function DuelMatchPage() {
             <ArrowLeft className="w-3.5 h-3.5" /> Home
           </Link>
         </div>
-        <OrderSetup match={match} myUserId={effectiveUserId} />
+        <OrderSetup match={match} myUserId={effectiveUserId} apiUrlFn={getV2ApiUrl} />
       </div>
     );
   }
@@ -310,16 +300,11 @@ export default function DuelMatchPage() {
   if (match.status === 'drafting') {
     return (
       <div style={{ background: 'var(--background)', minHeight: '100vh' }}>
-        {/* <div className="px-4 pt-6 max-w-5xl mx-auto">
-          <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-4 hover:opacity-70 transition-opacity" style={{ color: 'var(--muted)' }}>
-            <ArrowLeft className="w-3.5 h-3.5" /> Home
-          </Link>
-        </div> */}
-        <DraftPicker match={match} myUserId={effectiveUserId} />
+        <DraftPicker match={match} myUserId={effectiveUserId} apiUrlFn={getV2ApiUrl} />
       </div>
     );
   }
 
   // ── Countdown ────────────────────────────────────────────────────────────────
-  return <DuelCountdown match={match} myUserId={effectiveUserId} />;
+  return <DuelCountdown match={match} myUserId={effectiveUserId} apiUrlFn={getV2ApiUrl} />;
 }

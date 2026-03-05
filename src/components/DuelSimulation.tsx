@@ -17,6 +17,7 @@ interface DuelSimulationProps {
   myUserId:    string;
   onComplete:  (result: any, scorecard: any) => void;
   spectator?:  boolean;
+  apiUrlFn?:   (path: string) => string;
 }
 
 // Raw event row stored in duel_events
@@ -77,7 +78,7 @@ function delayForRow(row: RawEventRow): number {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function DuelSimulation({ match, myUserId, onComplete, spectator = false }: DuelSimulationProps) {
+export default function DuelSimulation({ match, myUserId, onComplete, spectator = false, apiUrlFn = getApiUrl }: DuelSimulationProps) {
   const isP1    = match.player1_user_id === myUserId;
   // In spectator mode, always show player1 as "left" and player2 as "right" with neutral labels
   const myName  = spectator ? match.player1_display_name : (isP1 ? match.player1_display_name : match.player2_display_name);
@@ -218,7 +219,7 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
   // ── Fetch all events since last known seq ──────────────────────────────────
   const fetchEvents = useCallback(async () => {
     try {
-      const res = await fetch(getApiUrl(`/duel/match/${match.id}/events`));
+      const res = await fetch(apiUrlFn(`/duel/match/${match.id}/events`));
       if (!res.ok) return;
       const rows: RawEventRow[] = await res.json();
       rows.sort((a, b) => a.seq - b.seq);
@@ -237,7 +238,7 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
     if (triggeredRef.current) return;
     triggeredRef.current = true;
     try {
-      await fetch(getApiUrl(`/duel/match/${match.id}/simulate`), { method: 'POST' });
+      await fetch(apiUrlFn(`/duel/match/${match.id}/simulate`), { method: 'POST' });
     } catch {
       triggeredRef.current = false; // allow retry on network error
     }
@@ -362,6 +363,9 @@ export default function DuelSimulation({ match, myUserId, onComplete, spectator 
             <div className="flex flex-wrap gap-2 md:gap-3 text-xs font-mono text-[var(--muted)] mt-1 pl-5">
               <span>{myName} <span style={{ color: 'var(--sandy-brown)' }}>vs</span> {oppName}</span>
               {toss && <><span>•</span><span>🪙 {toss} bats first</span></>}
+              {match.result?.venue_name && match.result.venue_name !== 'Unknown Venue' && (
+                <><span>•</span><span>📍 {match.result.venue_name}</span></>
+              )}
             </div>
           </div>
           {done && (

@@ -59,3 +59,13 @@ export function getApiUrl(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${cleanPath}`;
 }
+
+/**
+ * Build a URL targeting a v2 API endpoint.
+ * e.g. getV2ApiUrl('/duel/user') → '<base>/v2/duel/user'
+ */
+export function getV2ApiUrl(path: string): string {
+  const baseUrl = API_Base.endsWith('/') ? API_Base.slice(0, -1) : API_Base;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseUrl}/v2${cleanPath}`;
+}
